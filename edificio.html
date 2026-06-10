@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Metropolitan Print</title>
+
+  <!-- Tailwind CSS (utility-first CSS framework, cargado desde CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    /* Paleta de colores personalizados para Tailwind */
+    tailwind.config = {
+      theme: { extend: { colors: {
+        bg:'#18191f',      /* fondo principal de la app */
+        nav:'#111116',     /* barra de navegación */
+        surface:'#1d1e26', /* panel derecho */
+        border:'#28293a',  /* bordes de tarjetas */
+        muted:'#545e6a',   /* texto secundario */
+        subtle:'#2c3040',  /* texto muy tenue */
+      }}}
+    }
+  </script>
+
+  <style>
+    /* ── Botones de navegación ── */
+    .btn { padding:5px 14px; border-radius:6px; border:1px solid transparent; background:none; color:#545e6a; font-size:13px; font-weight:500; cursor:pointer; transition:all .15s }
+    .btn:hover { color:#c0cad4; background:rgba(255,255,255,.05) }
+    .btn.active { color:#00d4ff; background:rgba(0,212,255,.08); border-color:rgba(0,212,255,.22) }
+
+    /* ── Componentes del panel de detalle ── */
+    .d-bar  { height:10px; background:#13141c; border-radius:6px; overflow:hidden }
+    .d-fill { height:100%; border-radius:6px; transition:width .6s cubic-bezier(.4,0,.2,1) }
+    .d-card { background:#14151e; border:1px solid #28293a; border-radius:8px; padding:14px }
+    .d-tag  { font-size:10px; color:#363d48; font-weight:700; text-transform:uppercase; letter-spacing:.1em; margin-bottom:12px }
+
+    /* ── Tabla de impresoras ── */
+    .p-table{width:100%;border-collapse:collapse;font-size:12px}
+    .p-table th{padding:7px 10px;text-align:left;color:#545e6a;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid #28293a;white-space:nowrap}
+    .p-table td{padding:7px 10px;border-bottom:1px solid #1a1b22;vertical-align:middle;color:#b0bac4}
+    .p-table tr:last-child td{border-bottom:none}
+    .p-table tr:hover td{background:rgba(255,255,255,.025)}
+
+    /* ── Modal agregar / editar impresora ── */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:50;display:flex;align-items:center;justify-content:center}
+    .modal-box{background:#1d1e26;border:1px solid #28293a;border-radius:12px;padding:24px;width:500px;max-height:90vh;overflow-y:auto}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+    .form-group{display:flex;flex-direction:column;gap:5px;margin-bottom:0}
+    .form-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#545e6a}
+    .form-input{background:#13141c;border:1px solid #28293a;border-radius:6px;padding:7px 10px;color:#c0cad4;font-size:13px;outline:none;transition:border-color .15s;width:100%;box-sizing:border-box}
+    .form-input:focus{border-color:rgba(0,212,255,.5)}
+
+    /* ── Botones de acción en filas de tabla ── */
+    .act-btn{padding:3px 7px;border-radius:4px;border:1px solid #28293a;background:none;color:#545e6a;font-size:11px;cursor:pointer;transition:all .15s;margin-left:3px}
+    .act-btn:hover{border-color:#3a4050;color:#c0cad4}
+    .act-btn.danger:hover{border-color:#d42020;color:#d42020}
+  </style>
+
+  <!-- Three.js r160 vía ES module importmap (render 3D del edificio) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+
+<!-- h-screen overflow-hidden: la app ocupa exactamente la ventana, sin scroll de página -->
+<body class="bg-bg text-[#c0cad4] h-screen overflow-hidden font-[system-ui,sans-serif]">
+
+<!-- ── Barra de navegación superior ── -->
+<nav class="h-12 bg-nav border-b border-[#26272f] flex items-center px-5 gap-0.5">
+  <button class="btn">Dashboard</button>
+  <button class="btn active">Por piso</button>
+  <button class="btn">Historial</button>
+</nav>
+
+<!-- ── Contenido principal: columna 3D + panel de detalle ── -->
+<div class="flex gap-4 p-4 h-[calc(100vh-48px)]">
+
+  <!-- Columna izquierda: canvas Three.js del edificio (ancho fijo 380px) -->
+  <div id="three-wrap" class="shrink-0 w-[380px] rounded-xl overflow-hidden relative bg-[#0c1018]">
+
+    <!-- Leyenda de colores superpuesta (esquina inferior izquierda) -->
+    <div class="absolute bottom-4 left-4 z-10 flex flex-col gap-1.5 pointer-events-none">
+      <div class="flex items-center gap-1.5 text-[11px] text-muted font-medium"><div class="w-2 h-2 rounded-sm bg-[#00c46a]"></div>≥ 80%</div>
+      <div class="flex items-center gap-1.5 text-[11px] text-muted font-medium"><div class="w-2 h-2 rounded-sm bg-[#ffa000]"></div>≥ 40%</div>
+      <div class="flex items-center gap-1.5 text-[11px] text-muted font-medium"><div class="w-2 h-2 rounded-sm bg-[#d42020]"></div>&lt; 40%</div>
+      <div class="flex items-center gap-1.5 text-[11px] text-muted font-medium"><div class="w-2 h-2 rounded-sm bg-[#1a3060] border border-[#2a4880]"></div>Sin datos</div>
+    </div>
+
+    <!-- Hint de controles de cámara (esquina superior derecha) -->
+    <div class="absolute top-3 right-3 z-10 text-[10px] text-[#2a3040] pointer-events-none text-right leading-5">Scroll · zoom<br>Drag · rotar</div>
+  </div>
+
+  <!-- Columna derecha: panel de detalle del piso seleccionado (ocupa el resto del ancho) -->
+  <div class="flex-1 bg-surface border border-border rounded-xl overflow-hidden relative">
+
+    <!-- Estado vacío: se muestra hasta que el usuario haga clic en un piso -->
+    <div id="placeholder" class="absolute inset-0 flex items-center justify-center gap-2.5 text-subtle text-sm pointer-events-none transition-opacity duration-200">
+      <span class="text-xl opacity-40">←</span>
+      <span>Haz clic en un piso del edificio</span>
+    </div>
+
+    <!-- Contenedor del detalle (invisible por defecto, se muestra al seleccionar piso) -->
+    <div id="detail" class="absolute inset-0 p-7 overflow-y-auto opacity-0 pointer-events-none transition-opacity duration-300"></div>
+  </div>
+
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls }  from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+// ── Printer data ─────────────────────────────────────────────
+let PRINTERS = [
+  { hh:'HH-001', serie:'VNC3X21047', marca:'HP', modelo:'LaserJet Pro M404n', ip:'10.10.7.101', piso:'7', area:'Administración', tipo:'P2P', estado:'Operativa' },
+];
+const PESTADOS = {
+  'Planificada':    { color:'#6b7280', bg:'rgba(107,114,128,.14)' },
+  'En instalación': { color:'#3b82f6', bg:'rgba(59,130,246,.14)'  },
+  'Instalada':      { color:'#f59e0b', bg:'rgba(245,158,11,.14)'  },
+  'Configurada':    { color:'#f97316', bg:'rgba(249,115,22,.14)'  },
+  'Operativa':      { color:'#22c55e', bg:'rgba(34,197,94,.14)'   },
+};
+const PESTADO_LIST = Object.keys(PESTADOS);
+
+// ── Data ──────────────────────────────────────────────────────
+const FLOORS = [
+  { id:'S2', p:0 }, { id:'S1', p:0 },
+  { id:'1',  p:0 }, { id:'2',  p:0 },
+  { id:'3',  p:0 }, { id:'4',  p:0 },
+  { id:'5',  p:0 }, { id:'6',  p:0 },
+  { id:'7',  p:78, yellow:true }, { id:'8',  p:0 },
+  { id:'9',  p:0 }, { id:'10', p:0 },
+  { id:'11', p:0 }, { id:'12', p:0 }, { id:'13', p:0 },
+  { id:'14', p:0 }, { id:'15', p:0 }, { id:'16', p:0 },
+  { id:'17', p:0 }, { id:'18', p:0 }, { id:'19', p:0 },
+  { id:'20', p:0 }, { id:'21', p:0 }, { id:'22', p:0 },
+  { id:'23', p:0 }, { id:'24', p:0 }, { id:'25', p:0 },
+];
+const N = FLOORS.length;
+
+// ── Building constants ────────────────────────────────────────
+const FH   = 0.28;
+const BH   = 0.09;
+const STEP = FH + BH;
+const BW   = 3.6;
+const BD   = 2.8;
+const GROUND_Y = 2 * STEP;   // bottom of floor 1 (above S1/S2)
+const TOTAL_H  = N * STEP - BH;
+
+// ── Scene ─────────────────────────────────────────────────────
+const wrap = document.getElementById('three-wrap');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x8ab8d8);
+scene.fog = new THREE.Fog(0x8ab8d8, 40, 90);
+
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+wrap.appendChild(renderer.domElement);
+
+// Environment map (glass reflections)
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+pmrem.dispose();
+
+// ── Lights ────────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0xc8dff0, 1.4));
+
+const sun = new THREE.DirectionalLight(0xfff5e8, 3.2);
+sun.position.set(8, 18, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.setScalar(2048);
+Object.assign(sun.shadow.camera, { near:1, far:55, left:-8, right:8, top:18, bottom:-3 });
+scene.add(sun);
+
+const skyFill = new THREE.DirectionalLight(0x88bbdd, 0.8);
+skyFill.position.set(-6, 6, -10);
+scene.add(skyFill);
+
+// ── Materials ─────────────────────────────────────────────────
+const baseHex = (p, yellow) => yellow ? 0xffdd00 : !p ? 0x1a3060 : p >= 80 ? 0x00c46a : p >= 40 ? 0xffa000 : 0xd42020;
+
+const mkGlass = hex => new THREE.MeshPhysicalMaterial({
+  color: hex, roughness: 0.07, metalness: 0.75,
+  transparent: true, opacity: 0.92, envMapIntensity: 0.9,
+});
+const spandrelMat = new THREE.MeshStandardMaterial({ color: 0x040609, roughness: 0.95 });
+const mullionMat  = new THREE.MeshStandardMaterial({ color: 0x080d1a, roughness: 0.55, metalness: 0.9 });
+
+// ── Floor label helper ────────────────────────────────────────
+function makeLabel(text, p, yellow) {
+  const c = document.createElement('canvas');
+  c.width = 88; c.height = 44;
+  const cx = c.getContext('2d');
+  cx.fillStyle = '#ffffff';
+  cx.font = 'bold 28px monospace';
+  cx.textAlign = 'right';
+  cx.textBaseline = 'middle';
+  cx.fillText(text, 84, 22);
+  const tex = new THREE.CanvasTexture(c);
+  return new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, sizeAttenuation: true });
+}
+
+// ── Floors ────────────────────────────────────────────────────
+const floorMeshes = [];
+
+FLOORS.forEach((f, i) => {
+  const y = i * STEP;
+
+  // Glass slab
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(BW, FH, BD), mkGlass(baseHex(f.p, f.yellow)));
+  mesh.position.set(0, y + FH / 2, 0);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData.idx = i;
+  scene.add(mesh);
+  floorMeshes.push(mesh);
+
+  // Spandrel band
+  if (i < N - 1) {
+    const band = new THREE.Mesh(new THREE.BoxGeometry(BW + 0.08, BH, BD + 0.08), spandrelMat);
+    band.position.set(0, y + FH + BH / 2, 0);
+    band.castShadow = true;
+    scene.add(band);
+  }
+
+  // Floor number label
+  const sprite = new THREE.Sprite(makeLabel(f.id, f.p, f.yellow));
+  sprite.scale.set(0.58, 0.29, 1);
+  sprite.position.set(BW / 2 + 0.46, y + FH / 2, 0);
+  scene.add(sprite);
+});
+
+// ── Vertical mullions ─────────────────────────────────────────
+const mH = TOTAL_H + 0.05;
+for (let m = 0; m <= 7; m++) {
+  const x = -BW / 2 + m * (BW / 7);
+  for (const zo of [BD / 2 + 0.015, -(BD / 2 + 0.015)]) {
+    const ml = new THREE.Mesh(new THREE.BoxGeometry(0.045, mH, 0.05), mullionMat);
+    ml.position.set(x, mH / 2, zo);
+    scene.add(ml);
+  }
+}
+for (let m = 0; m <= 5; m++) {
+  const z = -BD / 2 + m * (BD / 5);
+  for (const xo of [BW / 2 + 0.015, -(BW / 2 + 0.015)]) {
+    const ml = new THREE.Mesh(new THREE.BoxGeometry(0.05, mH, 0.045), mullionMat);
+    ml.position.set(xo, mH / 2, z);
+    scene.add(ml);
+  }
+}
+
+// ── Roof parapet ──────────────────────────────────────────────
+const roofY = TOTAL_H;
+const parapet = new THREE.Mesh(
+  new THREE.BoxGeometry(BW + 0.12, 0.14, BD + 0.12),
+  new THREE.MeshStandardMaterial({ color: 0x0a0f1c, roughness: 0.6, metalness: 0.85 })
+);
+parapet.position.set(0, roofY + 0.07, 0);
+scene.add(parapet);
+
+// ── Helipad ───────────────────────────────────────────────────
+const helY = roofY + 0.21;
+
+// Concrete base disc
+const helBase = new THREE.Mesh(
+  new THREE.CylinderGeometry(1.08, 1.08, 0.1, 40),
+  new THREE.MeshStandardMaterial({ color: 0x141c26, roughness: 0.65, metalness: 0.3 })
+);
+helBase.position.set(0, helY + 0.05, 0);
+helBase.castShadow = true;
+scene.add(helBase);
+
+// Outer ring stripe (yellow)
+const helRing = new THREE.Mesh(
+  new THREE.RingGeometry(0.88, 1.04, 40),
+  new THREE.MeshBasicMaterial({ color: 0xddcc00, side: THREE.DoubleSide })
+);
+helRing.rotation.x = -Math.PI / 2;
+helRing.position.set(0, helY + 0.11, 0);
+scene.add(helRing);
+
+// "H" canvas texture on disc
+const hc = document.createElement('canvas'); hc.width = hc.height = 256;
+const hx = hc.getContext('2d');
+hx.strokeStyle = '#ddcc00'; hx.lineWidth = 14;
+hx.beginPath(); hx.arc(128, 128, 100, 0, Math.PI * 2); hx.stroke();
+hx.fillStyle = '#ddcc00';
+hx.font = 'bold 118px sans-serif';
+hx.textAlign = 'center'; hx.textBaseline = 'middle';
+hx.fillText('H', 128, 132);
+
+const helDisc = new THREE.Mesh(
+  new THREE.CircleGeometry(0.86, 40),
+  new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(hc), transparent: true })
+);
+helDisc.rotation.x = -Math.PI / 2;
+helDisc.position.set(0, helY + 0.115, 0);
+scene.add(helDisc);
+
+// ── PDI sign panel — right end of floor 25 ───────────────────
+const signW = 1.2, signH = 0.52, signD = 0.14;
+const signX = BW / 2 - signW / 2 - 0.06;   // right-aligned
+const signY = 26 * STEP + FH / 2;
+const signZ = BD / 2 + signD / 2 + 0.015;  // protrudes from facade
+
+// Backing panel (dark aluminium)
+const signBox = new THREE.Mesh(
+  new THREE.BoxGeometry(signW, signH, signD),
+  new THREE.MeshStandardMaterial({ color: 0x102B6B, roughness: 0.5, metalness: 0.85 })
+);
+signBox.position.set(signX, signY, signZ);
+scene.add(signBox);
+
+// Thin rim/frame around the panel face
+const rimMat = new THREE.MeshStandardMaterial({ color: 0x2a2e38, roughness: 0.4, metalness: 0.95 });
+[
+  { w: signW, h: 0.03, x: 0,              y:  signH / 2 - 0.015 }, // top
+  { w: signW, h: 0.03, x: 0,              y: -signH / 2 + 0.015 }, // bottom
+  { w: 0.03,  h: signH, x: -signW / 2 + 0.015, y: 0 },             // left
+  { w: 0.03,  h: signH, x:  signW / 2 - 0.015, y: 0 },             // right
+].forEach(({ w, h, x, y }) => {
+  const rim = new THREE.Mesh(new THREE.BoxGeometry(w, h, signD + 0.01), rimMat);
+  rim.position.set(signX + x, signY + y, signZ);
+  scene.add(rim);
+});
+
+// PDI logo (SVG inline → base64 data URL → Three.js texture)
+const pdiSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="220" viewBox="0 0 600 220">
+  <rect width="600" height="220" fill="#102B6B"/>
+  <text x="300" y="178"
+    font-family="Georgia,'Palatino Linotype',serif"
+    font-size="188" font-weight="bold"
+    fill="#F5C200" text-anchor="middle" letter-spacing="6">PDI</text>
+</svg>`;
+const pdiUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(pdiSvg)));
+const pdiTex = new THREE.TextureLoader().load(pdiUrl);
+const pdiText = new THREE.Mesh(
+  new THREE.PlaneGeometry(signW - 0.01, signH - 0.01),
+  new THREE.MeshBasicMaterial({ map: pdiTex })
+);
+pdiText.position.set(signX, signY, signZ + signD / 2 + 0.002);
+scene.add(pdiText);
+
+// ── Ground plane ─────────────────────────────────────────────
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(80, 80),
+  new THREE.MeshStandardMaterial({ color: 0x2a2e34, roughness: 1.0 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.01;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ── Perimeter band at ground level (marks start of underground) ──
+// 4 strips forming a frame around the building base at GROUND_Y
+const periMat = new THREE.MeshStandardMaterial({ color: 0x1c2a3a, roughness: 0.8, metalness: 0.5 });
+const periH = 0.10, periE = 0.28;   // height, extension from wall
+const periY = GROUND_Y - periH / 2;
+[
+  { w: BW + periE * 2, d: periE, x: 0,             z:  BD / 2 + periE / 2 },
+  { w: BW + periE * 2, d: periE, x: 0,             z: -(BD / 2 + periE / 2) },
+  { w: periE,          d: BD,    x:  BW / 2 + periE / 2, z: 0 },
+  { w: periE,          d: BD,    x: -(BW / 2 + periE / 2), z: 0 },
+].forEach(({ w, d, x, z }) => {
+  const s = new THREE.Mesh(new THREE.BoxGeometry(w, periH, d), periMat);
+  s.position.set(x, periY, z);
+  s.receiveShadow = true;
+  scene.add(s);
+});
+
+// ── Camera & controls ─────────────────────────────────────────
+const midY = TOTAL_H / 2;
+camera.position.set(-5, midY + 2.5, 16);
+camera.lookAt(0, midY, 0);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, midY, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.minPolarAngle = 0.15;
+controls.maxPolarAngle = Math.PI / 2 - 0.02;
+controls.minDistance = 5;
+controls.maxDistance = 45;
+controls.update();
+
+// ── Interaction ───────────────────────────────────────────────
+let hovIdx = -1, selIdx = -1;
+const ray = new THREE.Raycaster();
+const mp  = new THREE.Vector2();
+
+function getHit(e) {
+  const r = renderer.domElement.getBoundingClientRect();
+  mp.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(mp, camera);
+  const hits = ray.intersectObjects(floorMeshes);
+  return hits.length ? hits[0].object.userData.idx : -1;
+}
+
+function setFloorState(idx, state) {
+  const mat = floorMeshes[idx].material;
+  const base = new THREE.Color(baseHex(FLOORS[idx].p, FLOORS[idx].yellow));
+  if (state === 'hov') base.lerp(new THREE.Color(0xffffff), 0.18);
+  if (state === 'sel') base.lerp(new THREE.Color(0xffffff), 0.30);
+  mat.color.copy(base);
+  mat.emissive.setHex(state === 'sel' ? 0x003344 : 0x000000);
+  mat.emissiveIntensity = state === 'sel' ? 0.22 : 0;
+  mat.opacity = state === 'sel' ? 1.0 : 0.92;
+}
+
+renderer.domElement.addEventListener('mousemove', e => {
+  const idx = getHit(e);
+  if (idx === hovIdx) return;
+  if (hovIdx >= 0 && hovIdx !== selIdx) setFloorState(hovIdx, 'normal');
+  hovIdx = idx;
+  if (hovIdx >= 0 && hovIdx !== selIdx) setFloorState(hovIdx, 'hov');
+  renderer.domElement.style.cursor = idx >= 0 ? 'pointer' : 'default';
+});
+
+renderer.domElement.addEventListener('click', e => {
+  const idx = getHit(e);
+  if (idx < 0) return;
+  if (selIdx >= 0) setFloorState(selIdx, selIdx === hovIdx ? 'hov' : 'normal');
+  selIdx = selIdx === idx ? -1 : idx;
+  if (selIdx >= 0) setFloorState(selIdx, 'sel');
+  showDetail(selIdx >= 0 ? FLOORS[selIdx] : null);
+});
+
+// ── Resize ────────────────────────────────────────────────────
+function onResize() {
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+}
+onResize();
+new ResizeObserver(onResize).observe(wrap);
+
+// ── Render loop ───────────────────────────────────────────────
+(function loop() { requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
+
+// ── Detail panel ─────────────────────────────────────────────
+const HITOS = ['Levantamiento', 'Instalación', 'Configuración'];
+const STATE_COLOR = { completado:'#00e676', en_progreso:'#ffaa00' };
+const STATE_LABEL = { completado:'Completado', en_progreso:'En proceso' };
+const hitoState  = (p, i) => p >= (i+1) * (100/3) ? 'completado' : 'en_progreso';
+const floorColor  = p => !p ? '#8a9ab0' : p >= 80 ? '#00e676' : '#ffaa00';
+const floorStatus = p => !p ? 'Sin datos' : p >= 80 ? 'Completado' : 'En proceso';
+
+function showDetail(floor) {
+  const ph  = document.getElementById('placeholder');
+  const det = document.getElementById('detail');
+  if (!floor) {
+    ph.classList.remove('opacity-0');
+    det.classList.add('opacity-0', 'pointer-events-none');
+    return;
+  }
+  ph.classList.add('opacity-0');
+  det.classList.remove('opacity-0', 'pointer-events-none');
+
+  const c = floorColor(floor.p), st = floorStatus(floor.p);
+  const printers = PRINTERS.filter(p => p.piso === floor.id);
+
+  const printerRows = printers.map(p => {
+    const pi = PRINTERS.indexOf(p);
+    const pe = PESTADOS[p.estado] || PESTADOS['Planificada'];
+    return `<tr>
+      <td class="font-mono font-semibold" style="color:#c0cad4">${p.hh}</td>
+      <td><div style="color:#c0cad4;font-weight:500">${p.marca}</div><div style="font-size:11px;color:#545e6a">${p.modelo}</div></td>
+      <td class="font-mono" style="font-size:11px">${p.serie || '—'}</td>
+      <td><a href="http://${p.ip}" target="_blank" class="font-mono" style="font-size:11px;color:#00d4ff;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${p.ip}</a></td>
+      <td>${p.area}</td>
+      <td><span style="font-size:11px;padding:2px 7px;border-radius:4px;background:#ffffff0a;color:#7a8898">${p.tipo === 'P2P' ? 'P2P' : 'Servidor'}</span></td>
+      <td><span style="display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:99px;font-size:10px;font-weight:700;color:${pe.color};background:${pe.bg};border:1px solid ${pe.color}33">
+        <span style="width:5px;height:5px;border-radius:50%;background:${pe.color};display:inline-block;flex-shrink:0"></span>${p.estado}
+      </span></td>
+      <td style="white-space:nowrap">
+        <button class="act-btn" onclick="window._openModal('${floor.id}',${pi})">✎</button>
+        <button class="act-btn danger" onclick="window._deleteP(${pi},'${floor.id}')">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  det.innerHTML = `
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-3">
+        <h2 class="text-[22px] font-bold text-[#d8e0e8]">Piso ${floor.id}</h2>
+        <span class="px-3 py-0.5 rounded-full text-[11px] font-bold border" style="color:${c};background:${c}18;border-color:${c}40">${st}</span>
+      </div>
+      <span class="text-[22px] font-black" style="color:${c}">${floor.p}%</span>
+    </div>
+    <div class="d-bar mb-5"><div class="d-fill" style="width:${floor.p}%;background:${c};box-shadow:0 0 10px ${c}55"></div></div>
+    <div class="grid grid-cols-4 gap-2 mb-6">
+      ${HITOS.map((h, i) => {
+        const s = hitoState(floor.p, i), hc = STATE_COLOR[s];
+        return `<div class="d-card" style="padding:10px">
+          <div class="text-[10px] font-medium mb-1.5" style="color:#484f5c">${h}</div>
+          <div class="flex items-center gap-1.5 text-[11px] font-semibold">
+            <div class="w-1.5 h-1.5 rounded-full" style="background:${hc}"></div>
+            <span style="color:${hc}">${STATE_LABEL[s]}</span>
+          </div></div>`;
+      }).join('')}
+    </div>
+    <div class="flex items-center justify-between mb-3">
+      <div class="d-tag" style="margin-bottom:0">Impresoras &middot; ${printers.length}</div>
+      <button class="btn" style="padding:4px 12px;font-size:12px;color:#00d4ff;border-color:rgba(0,212,255,.25)" onclick="window._openModal('${floor.id}',-1)">+ Agregar</button>
+    </div>
+    ${printers.length === 0
+      ? `<div style="text-align:center;padding:32px 0;color:#2a2e3c;font-size:13px">Sin impresoras registradas para este piso</div>`
+      : `<div style="overflow-x:auto"><table class="p-table">
+          <thead><tr>
+            <th>HH</th><th>Marca / Modelo</th><th>Serie</th><th>IP</th><th>Área</th><th>Tipo</th><th>Estado</th><th></th>
+          </tr></thead>
+          <tbody>${printerRows}</tbody>
+        </table></div>`
+    }`;
+}
+
+// ── Modal ─────────────────────────────────────────────────────
+let _editIdx = -1, _modalPiso = '';
+
+window._openModal = function(piso, idx) {
+  _editIdx = idx;
+  _modalPiso = piso;
+  const isEdit = idx >= 0;
+  const p = isEdit ? PRINTERS[idx] : { hh:'', serie:'', marca:'', modelo:'', ip:'', piso, area:'', tipo:'P2P', estado:'Planificada' };
+  document.getElementById('modal-title').textContent = isEdit ? 'Editar impresora' : 'Agregar impresora';
+  document.getElementById('modal-form').innerHTML = `
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Identificador HH</label>
+        <input id="fi-hh" class="form-input" placeholder="HH-001" value="${p.hh}"></div>
+      <div class="form-group"><label class="form-label">N° Serie <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#363d48">(opcional)</span></label>
+        <input id="fi-serie" class="form-input" placeholder="SN..." value="${p.serie}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Marca</label>
+        <input id="fi-marca" class="form-input" placeholder="HP, Epson..." value="${p.marca}"></div>
+      <div class="form-group"><label class="form-label">Modelo</label>
+        <input id="fi-modelo" class="form-input" placeholder="LaserJet..." value="${p.modelo}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Dirección IP</label>
+        <input id="fi-ip" class="form-input" placeholder="10.x.x.x" value="${p.ip}"></div>
+      <div class="form-group"><label class="form-label">Área / Departamento</label>
+        <input id="fi-area" class="form-input" placeholder="Administración..." value="${p.area}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Tipo de conexión</label>
+        <select id="fi-tipo" class="form-input">
+          <option value="P2P"${p.tipo==='P2P'?' selected':''}>Punto a punto (P2P)</option>
+          <option value="Servidor"${p.tipo==='Servidor'?' selected':''}>Servidor de impresión</option>
+        </select></div>
+      <div class="form-group"><label class="form-label">Estado</label>
+        <select id="fi-estado" class="form-input">
+          ${PESTADO_LIST.map(e=>`<option value="${e}"${p.estado===e?' selected':''}>${e}</option>`).join('')}
+        </select></div>
+    </div>
+    <div class="form-group"><label class="form-label">Piso</label>
+      <select id="fi-piso" class="form-input">
+        ${FLOORS.map(f=>`<option value="${f.id}"${(isEdit?p.piso:piso)===f.id?' selected':''}>Piso ${f.id}</option>`).join('')}
+      </select></div>`;
+  document.getElementById('modal').classList.remove('hidden');
+};
+
+window._closeModal = function() {
+  document.getElementById('modal').classList.add('hidden');
+};
+
+window._saveModal = function() {
+  const g = id => document.getElementById(id).value.trim();
+  const hh = g('fi-hh'), ip = g('fi-ip');
+  if (!hh || !ip) { alert('Identificador HH e IP son obligatorios.'); return; }
+  const entry = { hh, serie:g('fi-serie'), marca:g('fi-marca'), modelo:g('fi-modelo'),
+    ip, piso:g('fi-piso'), area:g('fi-area'), tipo:g('fi-tipo'), estado:g('fi-estado') };
+  if (_editIdx >= 0) PRINTERS[_editIdx] = entry;
+  else PRINTERS.push(entry);
+  window._closeModal();
+  if (selIdx >= 0) showDetail(FLOORS[selIdx]);
+};
+
+window._deleteP = function(idx, floorId) {
+  if (!confirm(`¿Eliminar impresora ${PRINTERS[idx].hh}?`)) return;
+  PRINTERS.splice(idx, 1);
+  if (selIdx >= 0) showDetail(FLOORS[selIdx]);
+};
+</script>
+
+<!-- ── Modal de alta / edición de impresora ──
+     Se muestra al hacer clic en "+ Agregar" o en el ícono de edición de una fila.
+     El overlay oscuro cierra el modal al hacer clic fuera del cuadro. -->
+<div id="modal" class="hidden modal-overlay" onclick="if(event.target===this)window._closeModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="flex items-center justify-between mb-5">
+      <h3 id="modal-title" class="text-base font-bold text-[#d8e0e8]">Agregar impresora</h3>
+      <button onclick="window._closeModal()" style="background:none;border:none;color:#545e6a;font-size:22px;cursor:pointer;line-height:1;padding:0">&times;</button>
+    </div>
+    <div id="modal-form"></div>
+    <div class="flex justify-end gap-2 mt-5">
+      <button onclick="window._closeModal()" class="btn">Cancelar</button>
+      <button onclick="window._saveModal()" class="btn active">Guardar</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
