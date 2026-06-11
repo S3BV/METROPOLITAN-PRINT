@@ -55,12 +55,13 @@
     .act-btn.danger:hover{border-color:#d42020;color:#d42020}
   </style>
 
-  <!-- Three.js r160 vía ES module importmap (render 3D del edificio) -->
+  <!-- Three.js r160 + Supabase JS v2 vía ES module importmap -->
   <script type="importmap">
   {
     "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"
     }
   }
   </script>
@@ -113,11 +114,20 @@
 import * as THREE from 'three';
 import { OrbitControls }  from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { createClient }   from '@supabase/supabase-js';
 
-// ── Printer data ─────────────────────────────────────────────
-let PRINTERS = [
-  { hh:'HH-001', serie:'VNC3X21047', marca:'HP', modelo:'LaserJet Pro M404n', ip:'10.10.7.101', piso:'7', area:'Administración', tipo:'P2P', estado:'Operativa' },
-];
+// ── Supabase ──────────────────────────────────────────────────
+const db = createClient(
+  'https://vasuhcscqptqreqkviqk.supabase.co',
+  'sb_publishable_tPDWqPPhEQPq773IdPGjPA__SQi-iZU'
+);
+
+// ── Printer data (sincronizado con Supabase) ──────────────────
+let PRINTERS = [];
+const { data: _initPrinters, error: _initErr } = await db
+  .from('impresoras').select('*').order('created_at');
+if (_initErr) console.error('Supabase load error:', _initErr);
+else PRINTERS = _initPrinters ?? [];
 const PESTADOS = {
   'Planificada':    { color:'#6b7280', bg:'rgba(107,114,128,.14)' },
   'En instalación': { color:'#3b82f6', bg:'rgba(59,130,246,.14)'  },
@@ -576,20 +586,30 @@ window._closeModal = function() {
   document.getElementById('modal').classList.add('hidden');
 };
 
-window._saveModal = function() {
+window._saveModal = async function() {
   const g = id => document.getElementById(id).value.trim();
   const hh = g('fi-hh'), ip = g('fi-ip');
   if (!hh || !ip) { alert('Identificador HH e IP son obligatorios.'); return; }
-  const entry = { hh, serie:g('fi-serie'), marca:g('fi-marca'), modelo:g('fi-modelo'),
+  const entry = { hh, serie:g('fi-serie')||null, marca:g('fi-marca'), modelo:g('fi-modelo'),
     ip, piso:g('fi-piso'), area:g('fi-area'), tipo:g('fi-tipo'), estado:g('fi-estado') };
-  if (_editIdx >= 0) PRINTERS[_editIdx] = entry;
-  else PRINTERS.push(entry);
+
+  if (_editIdx >= 0) {
+    const { error } = await db.from('impresoras').update(entry).eq('id', PRINTERS[_editIdx].id);
+    if (error) { alert('Error al guardar: ' + error.message); return; }
+    PRINTERS[_editIdx] = { ...PRINTERS[_editIdx], ...entry };
+  } else {
+    const { data, error } = await db.from('impresoras').insert(entry).select().single();
+    if (error) { alert('Error al guardar: ' + error.message); return; }
+    PRINTERS.push(data);
+  }
   window._closeModal();
   if (selIdx >= 0) showDetail(FLOORS[selIdx]);
 };
 
-window._deleteP = function(idx, floorId) {
+window._deleteP = async function(idx) {
   if (!confirm(`¿Eliminar impresora ${PRINTERS[idx].hh}?`)) return;
+  const { error } = await db.from('impresoras').delete().eq('id', PRINTERS[idx].id);
+  if (error) { alert('Error al eliminar: ' + error.message); return; }
   PRINTERS.splice(idx, 1);
   if (selIdx >= 0) showDetail(FLOORS[selIdx]);
 };
