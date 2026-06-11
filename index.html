@@ -232,19 +232,34 @@ function makeLabel(text, p, yellow) {
 }
 
 // ── Floors ────────────────────────────────────────────────────
-const floorMeshes = [];
+const floorMeshes  = [];  // losa completa (estado uniforme)
+const floorMeshesL = [];  // mitad izquierda (estado mixto – verde)
+const floorMeshesR = [];  // mitad derecha   (estado mixto – amarillo)
 
 FLOORS.forEach((f, i) => {
   const y = i * STEP;
 
-  // Glass slab
+  // Losa completa (visible por defecto, se oculta en estado mixto)
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(BW, FH, BD), mkGlass(baseHex(f.p, f.yellow)));
   mesh.position.set(0, y + FH / 2, 0);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
+  mesh.castShadow = true; mesh.receiveShadow = true;
   mesh.userData.idx = i;
   scene.add(mesh);
   floorMeshes.push(mesh);
+
+  // Mitad izquierda — verde (oculta hasta estado mixto)
+  const meshL = new THREE.Mesh(new THREE.BoxGeometry(BW / 2, FH, BD), mkGlass(0x00c46a));
+  meshL.position.set(-BW / 4, y + FH / 2, 0);
+  meshL.castShadow = true; meshL.userData.idx = i; meshL.visible = false;
+  scene.add(meshL);
+  floorMeshesL.push(meshL);
+
+  // Mitad derecha — amarilla (oculta hasta estado mixto)
+  const meshR = new THREE.Mesh(new THREE.BoxGeometry(BW / 2, FH, BD), mkGlass(0xffa000));
+  meshR.position.set(BW / 4, y + FH / 2, 0);
+  meshR.castShadow = true; meshR.userData.idx = i; meshR.visible = false;
+  scene.add(meshR);
+  floorMeshesR.push(meshR);
 
   // Spandrel band
   if (i < N - 1) {
@@ -423,7 +438,9 @@ function getHit(e) {
   const r = renderer.domElement.getBoundingClientRect();
   mp.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(mp, camera);
-  const hits = ray.intersectObjects(floorMeshes);
+  // Incluye las mitades visibles para que el click funcione en estado mixto
+  const hittable = [...floorMeshes, ...floorMeshesL, ...floorMeshesR].filter(m => m.visible);
+  const hits = ray.intersectObjects(hittable);
   return hits.length ? hits[0].object.userData.idx : -1;
 }
 
@@ -436,46 +453,38 @@ function floorPrinterMix(floorId) {
   return hasOp && hasNonOp ? 'mixed' : hasOp ? 'all_op' : 'in_progress';
 }
 
-// Textura canvas 2px: pixel izq = colorA, pixel der = colorB (split nítido)
-function makeSplitTexture(ca, cb) {
-  const cv = document.createElement('canvas');
-  cv.width = 2; cv.height = 1;
-  const ctx = cv.getContext('2d');
-  ctx.fillStyle = `#${ca.getHexString()}`; ctx.fillRect(0, 0, 1, 1);
-  ctx.fillStyle = `#${cb.getHexString()}`; ctx.fillRect(1, 0, 1, 1);
-  const t = new THREE.CanvasTexture(cv);
-  t.magFilter = THREE.NearestFilter;
-  t.minFilter = THREE.NearestFilter;
-  return t;
-}
-
 function setFloorState(idx, state) {
-  const mat = floorMeshes[idx].material;
-  const mix = floorPrinterMix(FLOORS[idx].id);
-  const white = new THREE.Color(0xffffff);
-  const lerpAmt = state === 'sel' ? 0.30 : state === 'hov' ? 0.18 : 0;
+  const mix     = floorPrinterMix(FLOORS[idx].id);
+  const white   = new THREE.Color(0xffffff);
+  const lerp    = state === 'sel' ? 0.30 : state === 'hov' ? 0.18 : 0;
+  const emissH  = state === 'sel' ? 0x003344 : 0x000000;
+  const emissI  = state === 'sel' ? 0.22 : 0;
+  const opacity = state === 'sel' ? 1.0 : 0.92;
+
+  const applyMat = (mat, hex) => {
+    mat.color.copy(new THREE.Color(hex).lerp(white, lerp));
+    mat.emissive.setHex(emissH);
+    mat.emissiveIntensity = emissI;
+    mat.opacity = opacity;
+  };
 
   if (mix === 'mixed') {
-    // Mitad izquierda verde (Operativa), mitad derecha amarilla (en proceso)
-    const green  = new THREE.Color(0x00c46a).lerp(white, lerpAmt);
-    const yellow = new THREE.Color(0xffa000).lerp(white, lerpAmt);
-    if (mat.map) mat.map.dispose();
-    mat.map = makeSplitTexture(green, yellow);
-    mat.color.set(0xffffff);
-    mat.needsUpdate = true;
+    // Dos meshes separados: cada cara lateral queda con su color correcto
+    floorMeshes[idx].visible  = false;
+    floorMeshesL[idx].visible = true;
+    floorMeshesR[idx].visible = true;
+    applyMat(floorMeshesL[idx].material, 0x00c46a); // izquierda = verde
+    applyMat(floorMeshesR[idx].material, 0xffa000); // derecha   = amarillo
   } else {
-    if (mat.map) { mat.map.dispose(); mat.map = null; mat.needsUpdate = true; }
+    floorMeshes[idx].visible  = true;
+    floorMeshesL[idx].visible = false;
+    floorMeshesR[idx].visible = false;
     const effP = floorEffectiveP(FLOORS[idx].id);
-    const baseColor = effP > 0
+    const base = effP > 0
       ? (effP >= 80 ? 0x00c46a : 0xffa000)
       : baseHex(FLOORS[idx].p, FLOORS[idx].yellow);
-    const base = new THREE.Color(baseColor).lerp(white, lerpAmt);
-    mat.color.copy(base);
+    applyMat(floorMeshes[idx].material, base);
   }
-
-  mat.emissive.setHex(state === 'sel' ? 0x003344 : 0x000000);
-  mat.emissiveIntensity = state === 'sel' ? 0.22 : 0;
-  mat.opacity = state === 'sel' ? 1.0 : 0.92;
 }
 
 // Refresca el color 3D de un piso tras cambios en sus impresoras
