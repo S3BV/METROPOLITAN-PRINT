@@ -137,6 +137,16 @@ const PESTADOS = {
 };
 const PESTADO_LIST = Object.keys(PESTADOS);
 
+// Peso numérico de cada estado para calcular % de avance por piso
+const ESTADO_PESO = { 'Planificada':0, 'En instalación':25, 'Instalada':50, 'Configurada':75, 'Operativa':100 };
+
+// Retorna el % de avance real del piso según los estados de sus impresoras
+function floorEffectiveP(floorId) {
+  const ps = PRINTERS.filter(p => p.piso === floorId);
+  if (!ps.length) return 0;
+  return Math.round(ps.reduce((s, p) => s + (ESTADO_PESO[p.estado] ?? 0), 0) / ps.length);
+}
+
 // ── Data ──────────────────────────────────────────────────────
 const FLOORS = [
   { id:'S2', p:0 }, { id:'S1', p:0 },
@@ -419,7 +429,12 @@ function getHit(e) {
 
 function setFloorState(idx, state) {
   const mat = floorMeshes[idx].material;
-  const base = new THREE.Color(baseHex(FLOORS[idx].p, FLOORS[idx].yellow));
+  const effP = floorEffectiveP(FLOORS[idx].id);
+  // Si hay impresoras usa el color derivado de su avance; si no, mantiene color original
+  const baseColor = effP > 0
+    ? (effP >= 80 ? 0x00c46a : 0xffa000)
+    : baseHex(FLOORS[idx].p, FLOORS[idx].yellow);
+  const base = new THREE.Color(baseColor);
   if (state === 'hov') base.lerp(new THREE.Color(0xffffff), 0.18);
   if (state === 'sel') base.lerp(new THREE.Color(0xffffff), 0.30);
   mat.color.copy(base);
@@ -427,6 +442,16 @@ function setFloorState(idx, state) {
   mat.emissiveIntensity = state === 'sel' ? 0.22 : 0;
   mat.opacity = state === 'sel' ? 1.0 : 0.92;
 }
+
+// Refresca el color 3D de un piso tras cambios en sus impresoras
+function refresh3DFloor(floorId) {
+  const i = FLOORS.findIndex(f => f.id === floorId);
+  if (i < 0) return;
+  setFloorState(i, i === selIdx ? 'sel' : i === hovIdx ? 'hov' : 'normal');
+}
+
+// Aplicar colores iniciales según impresoras ya cargadas desde Supabase
+FLOORS.forEach(f => refresh3DFloor(f.id));
 
 renderer.domElement.addEventListener('mousemove', e => {
   const idx = getHit(e);
@@ -478,7 +503,8 @@ function showDetail(floor) {
   ph.classList.add('opacity-0');
   det.classList.remove('opacity-0', 'pointer-events-none');
 
-  const c = floorColor(floor.p), st = floorStatus(floor.p);
+  const effP = floorEffectiveP(floor.id);
+  const c = floorColor(effP), st = floorStatus(effP);
   const printers = PRINTERS.filter(p => p.piso === floor.id);
 
   const printerRows = printers.map(p => {
@@ -507,12 +533,12 @@ function showDetail(floor) {
         <h2 class="text-[22px] font-bold text-[#d8e0e8]">Piso ${floor.id}</h2>
         <span class="px-3 py-0.5 rounded-full text-[11px] font-bold border" style="color:${c};background:${c}18;border-color:${c}40">${st}</span>
       </div>
-      <span class="text-[22px] font-black" style="color:${c}">${floor.p}%</span>
+      <span class="text-[22px] font-black" style="color:${c}">${effP}%</span>
     </div>
-    <div class="d-bar mb-5"><div class="d-fill" style="width:${floor.p}%;background:${c};box-shadow:0 0 10px ${c}55"></div></div>
+    <div class="d-bar mb-5"><div class="d-fill" style="width:${effP}%;background:${c};box-shadow:0 0 10px ${c}55"></div></div>
     <div class="grid grid-cols-4 gap-2 mb-6">
       ${HITOS.map((h, i) => {
-        const s = hitoState(floor.p, i), hc = STATE_COLOR[s];
+        const s = hitoState(effP, i), hc = STATE_COLOR[s];
         return `<div class="d-card" style="padding:10px">
           <div class="text-[10px] font-medium mb-1.5" style="color:#484f5c">${h}</div>
           <div class="flex items-center gap-1.5 text-[11px] font-semibold">
@@ -603,14 +629,17 @@ window._saveModal = async function() {
     PRINTERS.push(data);
   }
   window._closeModal();
+  refresh3DFloor(entry.piso);
   if (selIdx >= 0) showDetail(FLOORS[selIdx]);
 };
 
 window._deleteP = async function(idx) {
+  const pisoId = PRINTERS[idx].piso;
   if (!confirm(`¿Eliminar impresora ${PRINTERS[idx].hh}?`)) return;
   const { error } = await db.from('impresoras').delete().eq('id', PRINTERS[idx].id);
   if (error) { alert('Error al eliminar: ' + error.message); return; }
   PRINTERS.splice(idx, 1);
+  refresh3DFloor(pisoId);
   if (selIdx >= 0) showDetail(FLOORS[selIdx]);
 };
 </script>
