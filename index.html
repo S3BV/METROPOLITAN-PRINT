@@ -427,17 +427,52 @@ function getHit(e) {
   return hits.length ? hits[0].object.userData.idx : -1;
 }
 
+// Retorna 'mixed' si hay al menos una Operativa y una en otro estado, si no el estado general
+function floorPrinterMix(floorId) {
+  const ps = PRINTERS.filter(p => p.piso === floorId);
+  if (!ps.length) return 'empty';
+  const hasOp    = ps.some(p => p.estado === 'Operativa');
+  const hasNonOp = ps.some(p => p.estado !== 'Operativa');
+  return hasOp && hasNonOp ? 'mixed' : hasOp ? 'all_op' : 'in_progress';
+}
+
+// Textura canvas 2px: pixel izq = colorA, pixel der = colorB (split nítido)
+function makeSplitTexture(ca, cb) {
+  const cv = document.createElement('canvas');
+  cv.width = 2; cv.height = 1;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = `#${ca.getHexString()}`; ctx.fillRect(0, 0, 1, 1);
+  ctx.fillStyle = `#${cb.getHexString()}`; ctx.fillRect(1, 0, 1, 1);
+  const t = new THREE.CanvasTexture(cv);
+  t.magFilter = THREE.NearestFilter;
+  t.minFilter = THREE.NearestFilter;
+  return t;
+}
+
 function setFloorState(idx, state) {
   const mat = floorMeshes[idx].material;
-  const effP = floorEffectiveP(FLOORS[idx].id);
-  // Si hay impresoras usa el color derivado de su avance; si no, mantiene color original
-  const baseColor = effP > 0
-    ? (effP >= 80 ? 0x00c46a : 0xffa000)
-    : baseHex(FLOORS[idx].p, FLOORS[idx].yellow);
-  const base = new THREE.Color(baseColor);
-  if (state === 'hov') base.lerp(new THREE.Color(0xffffff), 0.18);
-  if (state === 'sel') base.lerp(new THREE.Color(0xffffff), 0.30);
-  mat.color.copy(base);
+  const mix = floorPrinterMix(FLOORS[idx].id);
+  const white = new THREE.Color(0xffffff);
+  const lerpAmt = state === 'sel' ? 0.30 : state === 'hov' ? 0.18 : 0;
+
+  if (mix === 'mixed') {
+    // Mitad izquierda verde (Operativa), mitad derecha amarilla (en proceso)
+    const green  = new THREE.Color(0x00c46a).lerp(white, lerpAmt);
+    const yellow = new THREE.Color(0xffa000).lerp(white, lerpAmt);
+    if (mat.map) mat.map.dispose();
+    mat.map = makeSplitTexture(green, yellow);
+    mat.color.set(0xffffff);
+    mat.needsUpdate = true;
+  } else {
+    if (mat.map) { mat.map.dispose(); mat.map = null; mat.needsUpdate = true; }
+    const effP = floorEffectiveP(FLOORS[idx].id);
+    const baseColor = effP > 0
+      ? (effP >= 80 ? 0x00c46a : 0xffa000)
+      : baseHex(FLOORS[idx].p, FLOORS[idx].yellow);
+    const base = new THREE.Color(baseColor).lerp(white, lerpAmt);
+    mat.color.copy(base);
+  }
+
   mat.emissive.setHex(state === 'sel' ? 0x003344 : 0x000000);
   mat.emissiveIntensity = state === 'sel' ? 0.22 : 0;
   mat.opacity = state === 'sel' ? 1.0 : 0.92;
