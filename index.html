@@ -164,14 +164,49 @@ const FLOORS = [
 const N = FLOORS.length;
 
 // ── Constantes del edificio ───────────────────────────────────
-// AQUÍ SE CONTROLA LA FORMA Y PROPORCIÓN DEL EDIFICIO
-const FH   = 0.28;        // altura del vidrio de cada piso (floor height)
-const BH   = 0.09;        // altura de la banda spandrel entre pisos (beam height)
-const STEP = FH + BH;     // altura total por nivel = 0.37 unidades
-const BW   = 3.6;         // ancho del edificio (building width)  ← modificar para cambiar ancho
-const BD   = 2.8;         // profundidad del edificio (building depth) ← modificar para cambiar profundidad
-const GROUND_Y = 2 * STEP;   // altura donde comienza el piso 1 (por encima de S1/S2 subterráneos)
-const TOTAL_H  = N * STEP - BH; // altura total del edificio (~9.9 unidades)
+const FH   = 0.28;    // altura estándar del vidrio por piso
+const BH   = 0.09;    // altura del spandrel entre pisos
+const STEP = FH + BH; // paso por nivel (referencia)
+const BW   = 3.6;     // ancho base del edificio ← modificar aquí
+const BD   = 2.8;     // profundidad del edificio ← modificar aquí
+
+// ── Forma trapezoidal del edificio ─────────────────────────────
+// Pisos 1-5:   trapecio invertido (frente estrecho, fondo ancho) — como el edificio real
+// Pisos 6-21:  rectangular (cuerpo central de la torre)
+// Pisos 22-25: trapecio normal (frente ancho, fondo estrecho) — corona del edificio
+const TRAP_TAPER   = 0.8;   // diferencia total ancho frente-fondo en secciones trapezoidales
+const FLOOR1_EXTRA = 0.27;  // altura extra del piso 1 (lobby de acceso)
+
+// Altura real de cada piso (piso 1 = índice 2 tiene mayor altura)
+function getFH(i) { return i === 2 ? FH + FLOOR1_EXTRA : FH; }
+
+// Anchos de cara frontal (Z = +BD/2, lado calle) y posterior (Z = -BD/2) según índice
+function getFloorWidths(i) {
+  if (i >= 2 && i <= 6)  return { wF: BW - TRAP_TAPER, wB: BW };  // pisos 1-5: trapecio invertido
+  if (i >= 23)           return { wF: BW, wB: BW - TRAP_TAPER };   // pisos 22-25: trapecio normal
+  return { wF: BW, wB: BW };                                         // pisos 6-21: rectangular
+}
+
+// Genera geometría de losa con planta rectangular o trapezoidal isósceles.
+// El Shape se define en plano X-Y y se extruye en Z; luego se rota -90° en X
+// para que la planta quede en X-Z y la extrusión suba verticalmente en Y.
+function makeFloorGeo(wF, wB, fh) {
+  if (Math.abs(wF - wB) < 0.001) return new THREE.BoxGeometry(wF, fh, BD);
+  const s = new THREE.Shape();
+  // wF en Y = -BD/2 → después de rotar queda en Z = +BD/2 (cara frontal/calle)
+  s.moveTo(-wF/2, -BD/2); s.lineTo(wF/2, -BD/2);
+  s.lineTo(wB/2,   BD/2); s.lineTo(-wB/2, BD/2); s.closePath();
+  const geo = new THREE.ExtrudeGeometry(s, { depth: fh, bevelEnabled: false });
+  geo.applyMatrix4(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+  geo.applyMatrix4(new THREE.Matrix4().makeTranslation(0, -fh/2, 0));
+  return geo;
+}
+
+// Posición Y acumulada de cada piso (el piso 1 más alto desplaza todos los superiores)
+const floorY = [];
+{ let _cy = 0; for (let i = 0; i < N; i++) { floorY.push(_cy); _cy += getFH(i) + BH; } }
+const GROUND_Y = floorY[2];                    // nivel calle = base del piso 1
+const TOTAL_H  = floorY[N-1] + getFH(N-1);    // altura total del edificio
 
 // ── Scene ─────────────────────────────────────────────────────
 const wrap = document.getElementById('three-wrap');
@@ -243,42 +278,40 @@ const floorMeshesL = [];  // mitad izquierda (estado mixto – verde)
 const floorMeshesR = [];  // mitad derecha   (estado mixto – amarillo)
 
 FLOORS.forEach((f, i) => {
-  const y = i * STEP;
+  const y  = floorY[i];
+  const fh = getFH(i);
+  const { wF, wB } = getFloorWidths(i);
 
-  // Losa completa (visible por defecto, se oculta en estado mixto)
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(BW, FH, BD), mkGlass(baseHex(f.p, f.yellow)));
-  mesh.position.set(0, y + FH / 2, 0);
+  // Losa con planta rectangular o trapezoidal según sección del edificio
+  const mesh = new THREE.Mesh(makeFloorGeo(wF, wB, fh), mkGlass(baseHex(f.p, f.yellow)));
+  mesh.position.set(0, y + fh/2, 0);
   mesh.castShadow = true; mesh.receiveShadow = true;
   mesh.userData.idx = i;
-  scene.add(mesh);
-  floorMeshes.push(mesh);
+  scene.add(mesh); floorMeshes.push(mesh);
 
-  // Mitad izquierda — verde (oculta hasta estado mixto)
-  const meshL = new THREE.Mesh(new THREE.BoxGeometry(BW / 2, FH, BD), mkGlass(0x00c46a));
-  meshL.position.set(-BW / 4, y + FH / 2, 0);
+  // Mitades para estado mixto (ancho promedio, forma rectangular aproximada)
+  const wAvg = (wF + wB) / 2;
+  const meshL = new THREE.Mesh(new THREE.BoxGeometry(wAvg/2, fh, BD), mkGlass(0x00c46a));
+  meshL.position.set(-wAvg/4, y + fh/2, 0);
   meshL.castShadow = true; meshL.userData.idx = i; meshL.visible = false;
-  scene.add(meshL);
-  floorMeshesL.push(meshL);
+  scene.add(meshL); floorMeshesL.push(meshL);
 
-  // Mitad derecha — amarilla (oculta hasta estado mixto)
-  const meshR = new THREE.Mesh(new THREE.BoxGeometry(BW / 2, FH, BD), mkGlass(0xffa000));
-  meshR.position.set(BW / 4, y + FH / 2, 0);
+  const meshR = new THREE.Mesh(new THREE.BoxGeometry(wAvg/2, fh, BD), mkGlass(0xffa000));
+  meshR.position.set(wAvg/4, y + fh/2, 0);
   meshR.castShadow = true; meshR.userData.idx = i; meshR.visible = false;
-  scene.add(meshR);
-  floorMeshesR.push(meshR);
+  scene.add(meshR); floorMeshesR.push(meshR);
 
-  // Spandrel band
+  // Spandrel con la misma planta trapezoidal que la losa (ligeramente más ancho)
   if (i < N - 1) {
-    const band = new THREE.Mesh(new THREE.BoxGeometry(BW + 0.08, BH, BD + 0.08), spandrelMat);
-    band.position.set(0, y + FH + BH / 2, 0);
-    band.castShadow = true;
-    scene.add(band);
+    const band = new THREE.Mesh(makeFloorGeo(wF + 0.08, wB + 0.08, BH), spandrelMat);
+    band.position.set(0, y + fh + BH/2, 0);
+    band.castShadow = true; scene.add(band);
   }
 
-  // Floor number label
+  // Etiqueta número de piso (siempre junto a la cara más ancha del piso)
   const sprite = new THREE.Sprite(makeLabel(f.id, f.p, f.yellow));
   sprite.scale.set(0.58, 0.29, 1);
-  sprite.position.set(BW / 2 + 0.46, y + FH / 2, 0);
+  sprite.position.set(Math.max(wF, wB)/2 + 0.46, y + fh/2, 0);
   scene.add(sprite);
 });
 
@@ -359,7 +392,7 @@ scene.add(helDisc);
 // Panel físico que sobresale de la fachada con el logo PDI
 const signW = 1.2, signH = 0.52, signD = 0.14; // ancho, alto, profundidad del letrero
 const signX = BW / 2 - signW / 2 - 0.06;       // alineado a la derecha del edificio
-const signY = 26 * STEP + FH / 2;               // centrado en el piso 25 (índice 26)
+const signY = floorY[26] + getFH(26) / 2;        // centrado en el piso 25 (índice 26)
 const signZ = BD / 2 + signD / 2 + 0.015;       // sobresale de la fachada frontal
 
 // Caja de respaldo del letrero (color azul PDI)
@@ -429,6 +462,33 @@ const periY = GROUND_Y - periH / 2;
   s.position.set(x, periY, z);
   s.receiveShadow = true;
   scene.add(s);
+});
+
+// ── Bigas laterales estructurales ─────────────────────────────
+// Pilastras de hormigón visibles en los lados de las secciones trapezoidales
+// (pisos 1-5 y pisos 22-25), igual que en el Edificio Metlife real
+const beamMat = new THREE.MeshStandardMaterial({ color: 0x0b1520, roughness: 0.7, metalness: 0.55 });
+const pillarW = 0.32;         // ancho de la pilastra
+const pillarD = BD + 0.12;   // profundidad: cubre toda la cara lateral + pequeño vuelo
+
+// Pilastras sección superior — pisos 22-25 (frente ancho BW, fondo estrecho BW-TRAP_TAPER)
+// Se ubican en x = ±BW/2 (borde de la cara frontal más ancha)
+const topSecH = (floorY[26] + getFH(26)) - floorY[23];
+const topSecY = floorY[23] + topSecH / 2;
+[-1, 1].forEach(side => {
+  const b = new THREE.Mesh(new THREE.BoxGeometry(pillarW, topSecH, pillarD), beamMat);
+  b.position.set(side * BW / 2, topSecY, 0);
+  scene.add(b);
+});
+
+// Pilastras sección inferior — pisos 1-5 (frente estrecho BW-TRAP_TAPER, fondo ancho BW)
+// Se ubican en x = ±BW/2 (borde de la cara posterior más ancha, visible en lateral)
+const botSecH = (floorY[6] + getFH(6)) - floorY[2];
+const botSecY = floorY[2] + botSecH / 2;
+[-1, 1].forEach(side => {
+  const b = new THREE.Mesh(new THREE.BoxGeometry(pillarW, botSecH, pillarD), beamMat);
+  b.position.set(side * BW / 2, botSecY, 0);
+  scene.add(b);
 });
 
 // ── Camera & controls ─────────────────────────────────────────
