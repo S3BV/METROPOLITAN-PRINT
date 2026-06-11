@@ -163,14 +163,15 @@ const FLOORS = [
 ];
 const N = FLOORS.length;
 
-// ── Building constants ────────────────────────────────────────
-const FH   = 0.28;
-const BH   = 0.09;
-const STEP = FH + BH;
-const BW   = 3.6;
-const BD   = 2.8;
-const GROUND_Y = 2 * STEP;   // bottom of floor 1 (above S1/S2)
-const TOTAL_H  = N * STEP - BH;
+// ── Constantes del edificio ───────────────────────────────────
+// AQUÍ SE CONTROLA LA FORMA Y PROPORCIÓN DEL EDIFICIO
+const FH   = 0.28;        // altura del vidrio de cada piso (floor height)
+const BH   = 0.09;        // altura de la banda spandrel entre pisos (beam height)
+const STEP = FH + BH;     // altura total por nivel = 0.37 unidades
+const BW   = 3.6;         // ancho del edificio (building width)  ← modificar para cambiar ancho
+const BD   = 2.8;         // profundidad del edificio (building depth) ← modificar para cambiar profundidad
+const GROUND_Y = 2 * STEP;   // altura donde comienza el piso 1 (por encima de S1/S2 subterráneos)
+const TOTAL_H  = N * STEP - BH; // altura total del edificio (~9.9 unidades)
 
 // ── Scene ─────────────────────────────────────────────────────
 const wrap = document.getElementById('three-wrap');
@@ -207,14 +208,19 @@ const skyFill = new THREE.DirectionalLight(0x88bbdd, 0.8);
 skyFill.position.set(-6, 6, -10);
 scene.add(skyFill);
 
-// ── Materials ─────────────────────────────────────────────────
+// ── Materiales del edificio ───────────────────────────────────
+// baseHex: color del vidrio según avance (amarillo=especial, azul=sin datos, verde/ámbar/rojo=avance)
 const baseHex = (p, yellow) => yellow ? 0xffdd00 : !p ? 0x1a3060 : p >= 80 ? 0x00c46a : p >= 40 ? 0xffa000 : 0xd42020;
 
+// mkGlass: crea material de vidrio físico con reflexiones y transparencia
+// roughness=0.07 (muy liso), metalness=0.75 (reflectivo), opacity=0.92 (casi opaco)
 const mkGlass = hex => new THREE.MeshPhysicalMaterial({
   color: hex, roughness: 0.07, metalness: 0.75,
   transparent: true, opacity: 0.92, envMapIntensity: 0.9,
 });
+// spandrelMat: banda oscura entre pisos (hormigón/aluminio oscuro)
 const spandrelMat = new THREE.MeshStandardMaterial({ color: 0x040609, roughness: 0.95 });
+// mullionMat: montantes verticales de la fachada (aluminio oscuro)
 const mullionMat  = new THREE.MeshStandardMaterial({ color: 0x080d1a, roughness: 0.55, metalness: 0.9 });
 
 // ── Floor label helper ────────────────────────────────────────
@@ -276,64 +282,70 @@ FLOORS.forEach((f, i) => {
   scene.add(sprite);
 });
 
-// ── Vertical mullions ─────────────────────────────────────────
-const mH = TOTAL_H + 0.05;
+// ── Montantes verticales de fachada (mullions) ────────────────
+// Se dibujan sobre las caras frontal/trasera (eje Z) y laterales (eje X)
+// Cambia los números del loop para más o menos columnas de aluminio
+const mH = TOTAL_H + 0.05; // altura total del montante (igual que el edificio)
+
+// 8 montantes en cara frontal y trasera (distribuidos en ancho BW)
 for (let m = 0; m <= 7; m++) {
-  const x = -BW / 2 + m * (BW / 7);
-  for (const zo of [BD / 2 + 0.015, -(BD / 2 + 0.015)]) {
+  const x = -BW / 2 + m * (BW / 7); // posición X equidistante
+  for (const zo of [BD / 2 + 0.015, -(BD / 2 + 0.015)]) { // frente y atrás
     const ml = new THREE.Mesh(new THREE.BoxGeometry(0.045, mH, 0.05), mullionMat);
     ml.position.set(x, mH / 2, zo);
     scene.add(ml);
   }
 }
+// 6 montantes en caras laterales (distribuidos en profundidad BD)
 for (let m = 0; m <= 5; m++) {
-  const z = -BD / 2 + m * (BD / 5);
-  for (const xo of [BW / 2 + 0.015, -(BW / 2 + 0.015)]) {
+  const z = -BD / 2 + m * (BD / 5); // posición Z equidistante
+  for (const xo of [BW / 2 + 0.015, -(BW / 2 + 0.015)]) { // izquierda y derecha
     const ml = new THREE.Mesh(new THREE.BoxGeometry(0.05, mH, 0.045), mullionMat);
     ml.position.set(xo, mH / 2, z);
     scene.add(ml);
   }
 }
 
-// ── Roof parapet ──────────────────────────────────────────────
-const roofY = TOTAL_H;
+// ── Pretil de techo (parapet) ─────────────────────────────────
+// Reborde perimetral oscuro que corona el edificio
+const roofY = TOTAL_H; // Y donde termina el último piso
 const parapet = new THREE.Mesh(
-  new THREE.BoxGeometry(BW + 0.12, 0.14, BD + 0.12),
+  new THREE.BoxGeometry(BW + 0.12, 0.14, BD + 0.12), // ligeramente más ancho que el edificio
   new THREE.MeshStandardMaterial({ color: 0x0a0f1c, roughness: 0.6, metalness: 0.85 })
 );
 parapet.position.set(0, roofY + 0.07, 0);
 scene.add(parapet);
 
-// ── Helipad ───────────────────────────────────────────────────
-const helY = roofY + 0.21;
+// ── Helipuerto (techo) ────────────────────────────────────────
+const helY = roofY + 0.21; // altura base del helipuerto sobre el pretil
 
-// Concrete base disc
+// Disco de concreto base del helipuerto
 const helBase = new THREE.Mesh(
-  new THREE.CylinderGeometry(1.08, 1.08, 0.1, 40),
+  new THREE.CylinderGeometry(1.08, 1.08, 0.1, 40), // radio=1.08, 40 segmentos = círculo suave
   new THREE.MeshStandardMaterial({ color: 0x141c26, roughness: 0.65, metalness: 0.3 })
 );
 helBase.position.set(0, helY + 0.05, 0);
 helBase.castShadow = true;
 scene.add(helBase);
 
-// Outer ring stripe (yellow)
+// Anillo amarillo exterior del helipuerto
 const helRing = new THREE.Mesh(
-  new THREE.RingGeometry(0.88, 1.04, 40),
+  new THREE.RingGeometry(0.88, 1.04, 40), // radio interno=0.88, externo=1.04
   new THREE.MeshBasicMaterial({ color: 0xddcc00, side: THREE.DoubleSide })
 );
-helRing.rotation.x = -Math.PI / 2;
+helRing.rotation.x = -Math.PI / 2; // acostado horizontal
 helRing.position.set(0, helY + 0.11, 0);
 scene.add(helRing);
 
-// "H" canvas texture on disc
+// Disco central con letra "H" generada en canvas 2D
 const hc = document.createElement('canvas'); hc.width = hc.height = 256;
 const hx = hc.getContext('2d');
 hx.strokeStyle = '#ddcc00'; hx.lineWidth = 14;
-hx.beginPath(); hx.arc(128, 128, 100, 0, Math.PI * 2); hx.stroke();
+hx.beginPath(); hx.arc(128, 128, 100, 0, Math.PI * 2); hx.stroke(); // círculo
 hx.fillStyle = '#ddcc00';
 hx.font = 'bold 118px sans-serif';
 hx.textAlign = 'center'; hx.textBaseline = 'middle';
-hx.fillText('H', 128, 132);
+hx.fillText('H', 128, 132); // letra H centrada
 
 const helDisc = new THREE.Mesh(
   new THREE.CircleGeometry(0.86, 40),
@@ -343,13 +355,14 @@ helDisc.rotation.x = -Math.PI / 2;
 helDisc.position.set(0, helY + 0.115, 0);
 scene.add(helDisc);
 
-// ── PDI sign panel — right end of floor 25 ───────────────────
-const signW = 1.2, signH = 0.52, signD = 0.14;
-const signX = BW / 2 - signW / 2 - 0.06;   // right-aligned
-const signY = 26 * STEP + FH / 2;
-const signZ = BD / 2 + signD / 2 + 0.015;  // protrudes from facade
+// ── Letrero PDI — extremo derecho del piso 25 ────────────────
+// Panel físico que sobresale de la fachada con el logo PDI
+const signW = 1.2, signH = 0.52, signD = 0.14; // ancho, alto, profundidad del letrero
+const signX = BW / 2 - signW / 2 - 0.06;       // alineado a la derecha del edificio
+const signY = 26 * STEP + FH / 2;               // centrado en el piso 25 (índice 26)
+const signZ = BD / 2 + signD / 2 + 0.015;       // sobresale de la fachada frontal
 
-// Backing panel (dark aluminium)
+// Caja de respaldo del letrero (color azul PDI)
 const signBox = new THREE.Mesh(
   new THREE.BoxGeometry(signW, signH, signD),
   new THREE.MeshStandardMaterial({ color: 0x102B6B, roughness: 0.5, metalness: 0.85 })
@@ -357,20 +370,21 @@ const signBox = new THREE.Mesh(
 signBox.position.set(signX, signY, signZ);
 scene.add(signBox);
 
-// Thin rim/frame around the panel face
+// Marco metálico perimetral del letrero (4 tiras delgadas)
 const rimMat = new THREE.MeshStandardMaterial({ color: 0x2a2e38, roughness: 0.4, metalness: 0.95 });
 [
-  { w: signW, h: 0.03, x: 0,              y:  signH / 2 - 0.015 }, // top
-  { w: signW, h: 0.03, x: 0,              y: -signH / 2 + 0.015 }, // bottom
-  { w: 0.03,  h: signH, x: -signW / 2 + 0.015, y: 0 },             // left
-  { w: 0.03,  h: signH, x:  signW / 2 - 0.015, y: 0 },             // right
+  { w: signW, h: 0.03, x: 0,                   y:  signH / 2 - 0.015 }, // borde superior
+  { w: signW, h: 0.03, x: 0,                   y: -signH / 2 + 0.015 }, // borde inferior
+  { w: 0.03,  h: signH, x: -signW / 2 + 0.015, y: 0 },                  // borde izquierdo
+  { w: 0.03,  h: signH, x:  signW / 2 - 0.015, y: 0 },                  // borde derecho
 ].forEach(({ w, h, x, y }) => {
   const rim = new THREE.Mesh(new THREE.BoxGeometry(w, h, signD + 0.01), rimMat);
   rim.position.set(signX + x, signY + y, signZ);
   scene.add(rim);
 });
 
-// PDI logo (SVG inline → base64 data URL → Three.js texture)
+// Logo PDI: SVG inline convertido a base64 → textura Three.js
+// Para cambiar el logo modificar el SVG dentro del template literal
 const pdiSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="220" viewBox="0 0 600 220">
   <rect width="600" height="220" fill="#102B6B"/>
   <text x="300" y="178"
@@ -384,29 +398,32 @@ const pdiText = new THREE.Mesh(
   new THREE.PlaneGeometry(signW - 0.01, signH - 0.01),
   new THREE.MeshBasicMaterial({ map: pdiTex })
 );
-pdiText.position.set(signX, signY, signZ + signD / 2 + 0.002);
+pdiText.position.set(signX, signY, signZ + signD / 2 + 0.002); // pegado a la cara frontal
 scene.add(pdiText);
 
-// ── Ground plane ─────────────────────────────────────────────
+// ── Suelo / terreno ───────────────────────────────────────────
+// Plano gris oscuro de 80×80 unidades que recibe sombras
 const ground = new THREE.Mesh(
   new THREE.PlaneGeometry(80, 80),
   new THREE.MeshStandardMaterial({ color: 0x2a2e34, roughness: 1.0 })
 );
-ground.rotation.x = -Math.PI / 2;
+ground.rotation.x = -Math.PI / 2; // acostado horizontal
 ground.position.y = -0.01;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// ── Perimeter band at ground level (marks start of underground) ──
-// 4 strips forming a frame around the building base at GROUND_Y
+// ── Banda perimetral en nivel de calle (marca inicio subterráneo) ──
+// 4 franjas que forman un marco alrededor de la base del edificio a la altura de GROUND_Y
+// Indica visualmente dónde terminan los pisos sobre tierra y empiezan los subterráneos
 const periMat = new THREE.MeshStandardMaterial({ color: 0x1c2a3a, roughness: 0.8, metalness: 0.5 });
-const periH = 0.10, periE = 0.28;   // height, extension from wall
+const periH = 0.10;  // altura de la franja (10 cm en escala real)
+const periE = 0.28;  // extensión hacia afuera desde la fachada
 const periY = GROUND_Y - periH / 2;
 [
-  { w: BW + periE * 2, d: periE, x: 0,             z:  BD / 2 + periE / 2 },
-  { w: BW + periE * 2, d: periE, x: 0,             z: -(BD / 2 + periE / 2) },
-  { w: periE,          d: BD,    x:  BW / 2 + periE / 2, z: 0 },
-  { w: periE,          d: BD,    x: -(BW / 2 + periE / 2), z: 0 },
+  { w: BW + periE * 2, d: periE, x: 0,                  z:  BD / 2 + periE / 2 }, // franja frontal
+  { w: BW + periE * 2, d: periE, x: 0,                  z: -(BD / 2 + periE / 2) }, // franja trasera
+  { w: periE,          d: BD,    x:  BW / 2 + periE / 2, z: 0 }, // franja lateral derecha
+  { w: periE,          d: BD,    x: -(BW / 2 + periE / 2), z: 0 }, // franja lateral izquierda
 ].forEach(({ w, d, x, z }) => {
   const s = new THREE.Mesh(new THREE.BoxGeometry(w, periH, d), periMat);
   s.position.set(x, periY, z);
