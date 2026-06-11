@@ -464,31 +464,34 @@ const periY = GROUND_Y - periH / 2;
   scene.add(s);
 });
 
-// ── Bigas laterales estructurales ─────────────────────────────
-// Pilastras de hormigón visibles en los lados de las secciones trapezoidales
+// ── Columnas estructurales laterales ──────────────────────────
+// Columnas cilíndricas de hormigón en las secciones trapezoidales
 // (pisos 1-5 y pisos 22-25), igual que en el Edificio Metlife real
-const beamMat = new THREE.MeshStandardMaterial({ color: 0x0b1520, roughness: 0.7, metalness: 0.55 });
-const pillarW = 0.32;         // ancho de la pilastra
-const pillarD = BD + 0.12;   // profundidad: cubre toda la cara lateral + pequeño vuelo
+const colMat = new THREE.MeshStandardMaterial({ color: 0x0b1520, roughness: 0.65, metalness: 0.55 });
+const colR  = 0.18;   // radio de la columna
+const colSeg = 24;    // segmentos radiales (cilindro suave)
 
-// Pilastras sección superior — pisos 22-25 (frente ancho BW, fondo estrecho BW-TRAP_TAPER)
-// Se ubican en x = ±BW/2 (borde de la cara frontal más ancha)
+// Columnas sección superior — pisos 22-25
 const topSecH = (floorY[26] + getFH(26)) - floorY[23];
 const topSecY = floorY[23] + topSecH / 2;
+// Dos columnas por lado: una en esquina frontal (Z = +BD/2) y una en esquina posterior (Z = -BD/2)
 [-1, 1].forEach(side => {
-  const b = new THREE.Mesh(new THREE.BoxGeometry(pillarW, topSecH, pillarD), beamMat);
-  b.position.set(side * BW / 2, topSecY, 0);
-  scene.add(b);
+  [BD / 2, -BD / 2].forEach(cz => {
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(colR, colR, topSecH, colSeg), colMat);
+    c.position.set(side * BW / 2, topSecY, cz);
+    scene.add(c);
+  });
 });
 
-// Pilastras sección inferior — pisos 1-5 (frente estrecho BW-TRAP_TAPER, fondo ancho BW)
-// Se ubican en x = ±BW/2 (borde de la cara posterior más ancha, visible en lateral)
+// Columnas sección inferior — pisos 1-5
 const botSecH = (floorY[6] + getFH(6)) - floorY[2];
 const botSecY = floorY[2] + botSecH / 2;
 [-1, 1].forEach(side => {
-  const b = new THREE.Mesh(new THREE.BoxGeometry(pillarW, botSecH, pillarD), beamMat);
-  b.position.set(side * BW / 2, botSecY, 0);
-  scene.add(b);
+  [BD / 2, -BD / 2].forEach(cz => {
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(colR, colR, botSecH, colSeg), colMat);
+    c.position.set(side * BW / 2, botSecY, cz);
+    scene.add(c);
+  });
 });
 
 // ── Camera & controls ─────────────────────────────────────────
