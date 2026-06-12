@@ -387,8 +387,8 @@ const BD_minor = BD - TRAP_TAPER; // profundidad base menor
 // Losa plana que cierra el techo y sirve de base al helipuerto
 const tapaMat = new THREE.MeshStandardMaterial({ color: 0x0c111a, roughness: 0.7, metalness: 0.6 });
 const tapaH   = 0.28;
-const tapa    = new THREE.Mesh(new THREE.BoxGeometry(0.56, tapaH, BD + 0.08), tapaMat);
-tapa.position.set(-(BW / 2 - 0.28), roofY + tapaH / 2, 0);
+const tapa    = new THREE.Mesh(new THREE.BoxGeometry(BW + 0.08, 0.56, BD + 0.08), tapaMat);
+tapa.position.set(0, roofY + 0.28, 0);
 tapa.castShadow = true;
 scene.add(tapa);
 
