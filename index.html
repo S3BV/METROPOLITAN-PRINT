@@ -383,8 +383,17 @@ mullZones.forEach(({ y0, y1, zone }) => {
 const roofY = TOTAL_H;
 const BD_minor = BD - TRAP_TAPER; // profundidad base menor
 
+// ── Tapa rectangular sobre piso 25 ───────────────────────────
+// Losa plana que cierra el techo y sirve de base al helipuerto
+const tapaMat = new THREE.MeshStandardMaterial({ color: 0x0c111a, roughness: 0.7, metalness: 0.6 });
+const tapaH   = 0.14;
+const tapa    = new THREE.Mesh(new THREE.BoxGeometry(BW + 0.08, tapaH, BD + 0.08), tapaMat);
+tapa.position.set(0, roofY + tapaH / 2, 0);
+tapa.castShadow = true;
+scene.add(tapa);
+
 // ── Helipuerto (techo) ────────────────────────────────────────
-const helY = roofY + 0.21; // altura base del helipuerto sobre el pretil
+const helY = roofY + tapaH + 0.07; // helipuerto apoyado sobre la tapa
 
 // Disco de concreto base del helipuerto
 const helBase = new THREE.Mesh(
@@ -516,12 +525,14 @@ const botBigaX = BW/2 - bigaSize/2;
 });
 
 // Sección pisos 22-25: base menor en lado IZQUIERDO (x=-BW/2)
-const topSecH = (floorY[26] + getFH(26)) - floorY[23];
-const topSecY = floorY[23] + topSecH / 2;
-// z = ±BD/2: esquinas de la cara inferior del piso 22 (rectangular)
-[+BD/2, -BD/2].forEach(cz => {
+// Baja BH para incluir el spandrel 21→22 y tocar la base del piso 22
+const topBigaY0 = floorY[23] - BH;
+const topSecH   = TOTAL_H - topBigaY0;
+const topSecY   = topBigaY0 + topSecH / 2;
+const topBigaX  = -(BW/2 - bigaSize/2);
+[+(BD/2 - bigaSize/2), -(BD/2 - bigaSize/2)].forEach(cz => {
   const b = new THREE.Mesh(new THREE.BoxGeometry(bigaSize, topSecH, bigaSize), bigaMat);
-  b.position.set(-BW/2, topSecY, cz);
+  b.position.set(topBigaX, topSecY, cz);
   b.castShadow = true; scene.add(b);
 });
 
