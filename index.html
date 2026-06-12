@@ -386,7 +386,7 @@ const BD_minor = BD - TRAP_TAPER; // profundidad base menor
 // ── Tapa rectangular sobre piso 25 ───────────────────────────
 // Losa plana que cierra el techo y sirve de base al helipuerto
 const tapaMat = new THREE.MeshStandardMaterial({ color: 0x0c111a, roughness: 0.7, metalness: 0.6 });
-const tapaH   = 0.14;
+const tapaH   = 0.28;
 const tapa    = new THREE.Mesh(new THREE.BoxGeometry(BW + 0.08, tapaH, BD + 0.08), tapaMat);
 tapa.position.set(0, roofY + tapaH / 2, 0);
 tapa.castShadow = true;
