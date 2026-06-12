@@ -196,7 +196,7 @@ export function createBuilding(scene: THREE.Scene, floors: Floor[]): BuildingRes
 
   // ── PDI Sign — cara lateral derecha (+X) ─────────────────────
   const sign2X = (BW + 0.08) / 2 + signD / 2 + 0.015;
-  const sign2Z = -1.0; // desplazado hacia el fondo de la cara lateral
+  const sign2Z = 1.0; // desplazado hacia el fondo de la cara lateral
 
   const signBox2 = new THREE.Mesh(
     new THREE.BoxGeometry(signD, signH, signW),
