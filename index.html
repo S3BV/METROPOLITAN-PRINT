@@ -464,31 +464,35 @@ const periY = GROUND_Y - periH / 2;
   scene.add(s);
 });
 
-// ── Columnas estructurales en secciones trapezoidales ─────────
-// Una columna cilíndrica en cada esquina del trapecio, desplazada
-// hacia afuera por el radio → siempre sobresale de ambas bases.
-const colMat = new THREE.MeshStandardMaterial({ color: 0x1a2d40, roughness: 0.55, metalness: 0.5 });
-const colR   = 0.18;  // radio de la columna
-const colSeg = 36;    // segmentos (cilindro suave)
+// ── Columnas estructurales laterales ──────────────────────────
+// Columnas cilíndricas de hormigón en las secciones trapezoidales
+// (pisos 1-5 y pisos 22-25), igual que en el Edificio Metlife real
+const colMat = new THREE.MeshStandardMaterial({ color: 0x0b1520, roughness: 0.65, metalness: 0.55 });
+const colR  = 0.18;   // radio de la columna
+const colSeg = 24;    // segmentos radiales (cilindro suave)
 
-// Añade 4 columnas en las esquinas de una sección trapezoidal.
-// wF = ancho cara frontal (Z=+BD/2), wB = ancho cara posterior (Z=-BD/2)
-function addCornerCols(wF, wB, secH, secY) {
-  [[wF/2, BD/2], [-wF/2, BD/2], [wB/2, -BD/2], [-wB/2, -BD/2]].forEach(([cx, cz]) => {
-    const d = Math.hypot(cx, cz);           // distancia al centro
-    const c = new THREE.Mesh(new THREE.CylinderGeometry(colR, colR, secH, colSeg), colMat);
-    c.position.set(cx + cx/d * colR, secY, cz + cz/d * colR); // offset radial hacia afuera
+// Columnas sección superior — pisos 22-25
+const topSecH = (floorY[26] + getFH(26)) - floorY[23];
+const topSecY = floorY[23] + topSecH / 2;
+// Dos columnas por lado: una en esquina frontal (Z = +BD/2) y una en esquina posterior (Z = -BD/2)
+[-1, 1].forEach(side => {
+  [BD / 2, -BD / 2].forEach(cz => {
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(colR, colR, topSecH, colSeg), colMat);
+    c.position.set(side * BW / 2, topSecY, cz);
     scene.add(c);
   });
-}
+});
 
-// Sección superior — pisos 22-25 (frente BW ancho, fondo BW-TRAP_TAPER estrecho)
-const topSecH = (floorY[26] + getFH(26)) - floorY[23];
-addCornerCols(BW, BW - TRAP_TAPER, topSecH, floorY[23] + topSecH / 2);
-
-// Sección inferior — pisos 1-5 (frente BW-TRAP_TAPER estrecho, fondo BW ancho)
+// Columnas sección inferior — pisos 1-5
 const botSecH = (floorY[6] + getFH(6)) - floorY[2];
-addCornerCols(BW - TRAP_TAPER, BW, botSecH, floorY[2] + botSecH / 2);
+const botSecY = floorY[2] + botSecH / 2;
+[-1, 1].forEach(side => {
+  [BD / 2, -BD / 2].forEach(cz => {
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(colR, colR, botSecH, colSeg), colMat);
+    c.position.set(side * BW / 2, botSecY, cz);
+    scene.add(c);
+  });
+});
 
 // ── Camera & controls ─────────────────────────────────────────
 const midY = TOTAL_H / 2;
