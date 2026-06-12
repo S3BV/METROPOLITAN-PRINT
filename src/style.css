@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.btn { padding:5px 14px; border-radius:6px; border:1px solid transparent; background:none; color:#545e6a; font-size:13px; font-weight:500; cursor:pointer; transition:all .15s }
+.btn:hover { color:#c0cad4; background:rgba(255,255,255,.05) }
+.btn.active { color:#00d4ff; background:rgba(0,212,255,.08); border-color:rgba(0,212,255,.22) }
+
+.d-bar  { height:10px; background:#13141c; border-radius:6px; overflow:hidden }
+.d-fill { height:100%; border-radius:6px; transition:width .6s cubic-bezier(.4,0,.2,1) }
+.d-card { background:#14151e; border:1px solid #28293a; border-radius:8px; padding:14px }
+.d-tag  { font-size:10px; color:#363d48; font-weight:700; text-transform:uppercase; letter-spacing:.1em; margin-bottom:12px }
+
+.p-table{width:100%;border-collapse:collapse;font-size:12px}
+.p-table th{padding:7px 10px;text-align:left;color:#545e6a;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid #28293a;white-space:nowrap}
+.p-table td{padding:7px 10px;border-bottom:1px solid #1a1b22;vertical-align:middle;color:#b0bac4}
+.p-table tr:last-child td{border-bottom:none}
+.p-table tr:hover td{background:rgba(255,255,255,.025)}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:50;display:flex;align-items:center;justify-content:center}
+.modal-box{background:#1d1e26;border:1px solid #28293a;border-radius:12px;padding:24px;width:500px;max-height:90vh;overflow-y:auto}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.form-group{display:flex;flex-direction:column;gap:5px;margin-bottom:0}
+.form-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#545e6a}
+.form-input{background:#13141c;border:1px solid #28293a;border-radius:6px;padding:7px 10px;color:#c0cad4;font-size:13px;outline:none;transition:border-color .15s;width:100%;box-sizing:border-box}
+.form-input:focus{border-color:rgba(0,212,255,.5)}
+
+.act-btn{padding:3px 7px;border-radius:4px;border:1px solid #28293a;background:none;color:#545e6a;font-size:11px;cursor:pointer;transition:all .15s;margin-left:3px}
+.act-btn:hover{border-color:#3a4050;color:#c0cad4}
+.act-btn.danger:hover{border-color:#d42020;color:#d42020}
