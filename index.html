@@ -263,9 +263,9 @@ const mkGlass = hex => new THREE.MeshPhysicalMaterial({
   transparent: true, opacity: 0.92, envMapIntensity: 0.9,
 });
 // spandrelMat: banda oscura entre pisos (hormigón/aluminio oscuro)
-const spandrelMat = new THREE.MeshStandardMaterial({ color: 0x686b6e, roughness: 0.90 });
+const spandrelMat = new THREE.MeshStandardMaterial({ color: 0x4f5154, roughness: 0.90 });
 // mullionMat: montantes verticales de la fachada (aluminio oscuro)
-const mullionMat  = new THREE.MeshStandardMaterial({ color: 0x686b6e, roughness: 0.50, metalness: 0.9 });
+const mullionMat  = new THREE.MeshStandardMaterial({ color: 0x4f5154, roughness: 0.50, metalness: 0.9 });
 
 // ── Floor label helper ────────────────────────────────────────
 function makeLabel(text, p, yellow) {
@@ -393,7 +393,7 @@ const BD_minor = BD - TRAP_TAPER; // profundidad base menor
 
 // ── Tapa rectangular sobre piso 25 ───────────────────────────
 // Losa plana que cierra el techo y sirve de base al helipuerto
-const tapaMat = new THREE.MeshStandardMaterial({ color: 0x686b6e, roughness: 0.65, metalness: 0.6 });
+const tapaMat = new THREE.MeshStandardMaterial({ color: 0x4f5154, roughness: 0.65, metalness: 0.6 });
 const tapaH   = 0.28;
 const tapa    = new THREE.Mesh(new THREE.BoxGeometry(BW + 0.08, 0.50, BD + 0.08), tapaMat);
 tapa.position.set(0, roofY + 0.25, 0);
@@ -518,7 +518,7 @@ const periY = GROUND_Y - periH / 2;
 // ── Bigas cuadradas en esquinas de la base menor ──────────────
 // Sección pisos 1-5: base menor en lado DERECHO (x=+BW/2)
 // Las bigas van en los dos ángulos del lado corto: frontal y trasero
-const bigaMat = new THREE.MeshStandardMaterial({ color: 0x686b6e, roughness: 0.70, metalness: 0.5 });
+const bigaMat = new THREE.MeshStandardMaterial({ color: 0x4f5154, roughness: 0.70, metalness: 0.5 });
 const bigaSize = 0.20;  // sección cuadrada de la biga
 
 // floorY[7] = base del piso 6 (incluye el spandrel encima del piso 5)
