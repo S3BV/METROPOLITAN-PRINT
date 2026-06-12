@@ -179,7 +179,7 @@ const BD   = 2.8;     // profundidad base mayor (eje Z) ← modificar
 //  Pisos 6-21:  rectangular (dL=dR=BD)
 //  Pisos 22-25: trapecio girado 180° — base mayor DERECHA, base menor IZQUIERDA
 //
-const TRAP_TAPER   = 0.7;   // diferencia de profundidad entre base mayor y base menor
+const TRAP_TAPER   = 0.91;  // diferencia de profundidad entre base mayor y base menor
 const FLOOR1_EXTRA = 0.27;  // altura extra del piso 1 (hall de acceso)
 
 // Altura del piso (piso 1 = índice 2 tiene mayor altura)
@@ -346,36 +346,8 @@ for (let m = 0; m <= 5; m++) {
   }
 }
 
-// ── Cierre perimetral sobre piso 25 ──────────────────────────
-// Losa de cierre y pretil que corona la sección 22-25 (trapecio
-// base mayor DERECHA). Sigue la misma planta trapezoidal del último piso.
 const roofY = TOTAL_H;
-const roofMat = new THREE.MeshStandardMaterial({ color: 0x0a0f1c, roughness: 0.6, metalness: 0.85 });
 const BD_minor = BD - TRAP_TAPER; // profundidad base menor
-
-// Losa horizontal de cierre (tapa del edificio)
-const cierreGeo = makeFloorGeo(BD_minor + 0.12, BD + 0.12, 0.16);
-const cierre = new THREE.Mesh(cierreGeo, roofMat);
-cierre.position.set(0, roofY + 0.08, 0);
-scene.add(cierre);
-
-// Pretil izquierdo (lado base menor pisos 22-25)
-const pretilL = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.28, BD_minor + 0.12), roofMat);
-pretilL.position.set(-BW/2, roofY + 0.14, 0);
-scene.add(pretilL);
-
-// Pretil derecho (lado base mayor pisos 22-25)
-const pretilR = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.28, BD + 0.12), roofMat);
-pretilR.position.set(BW/2, roofY + 0.14, 0);
-scene.add(pretilR);
-
-// Pretil frontal y trasero (lados oblicuos) — aproximados como cajas
-const pretilF = new THREE.Mesh(new THREE.BoxGeometry(BW + 0.12, 0.28, 0.10), roofMat);
-pretilF.position.set(0, roofY + 0.14, (BD + BD_minor)/4);
-scene.add(pretilF);
-const pretilB = new THREE.Mesh(new THREE.BoxGeometry(BW + 0.12, 0.28, 0.10), roofMat);
-pretilB.position.set(0, roofY + 0.14, -(BD + BD_minor)/4);
-scene.add(pretilB);
 
 // ── Helipuerto (techo) ────────────────────────────────────────
 const helY = roofY + 0.21; // altura base del helipuerto sobre el pretil
