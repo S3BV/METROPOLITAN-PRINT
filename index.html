@@ -252,7 +252,7 @@ scene.add(skyFill);
 
 // ── Materiales del edificio ───────────────────────────────────
 // baseHex: color del vidrio según avance (amarillo=especial, azul=sin datos, verde/ámbar/rojo=avance)
-const baseHex = (p, yellow) => yellow ? 0xffdd00 : !p ? 0x1a3060 : p >= 80 ? 0x00c46a : p >= 40 ? 0xffa000 : 0xd42020;
+const baseHex = (p, yellow) => yellow ? 0xffdd00 : !p ? 0x2a6ab8 : p >= 80 ? 0x00c46a : p >= 40 ? 0xffa000 : 0xd42020;
 
 // mkGlass: crea material de vidrio físico con reflexiones y transparencia
 // roughness=0.07 (muy liso), metalness=0.75 (reflectivo), opacity=0.92 (casi opaco)
@@ -261,9 +261,9 @@ const mkGlass = hex => new THREE.MeshPhysicalMaterial({
   transparent: true, opacity: 0.92, envMapIntensity: 0.9,
 });
 // spandrelMat: banda oscura entre pisos (hormigón/aluminio oscuro)
-const spandrelMat = new THREE.MeshStandardMaterial({ color: 0x040609, roughness: 0.95 });
+const spandrelMat = new THREE.MeshStandardMaterial({ color: 0x8898a8, roughness: 0.65 });
 // mullionMat: montantes verticales de la fachada (aluminio oscuro)
-const mullionMat  = new THREE.MeshStandardMaterial({ color: 0x080d1a, roughness: 0.55, metalness: 0.9 });
+const mullionMat  = new THREE.MeshStandardMaterial({ color: 0x8090a0, roughness: 0.5, metalness: 0.8 });
 
 // ── Floor label helper ────────────────────────────────────────
 function makeLabel(text, p, yellow) {
@@ -385,10 +385,10 @@ const BD_minor = BD - TRAP_TAPER; // profundidad base menor
 
 // ── Tapa rectangular sobre piso 25 ───────────────────────────
 // Losa plana que cierra el techo y sirve de base al helipuerto
-const tapaMat = new THREE.MeshStandardMaterial({ color: 0x0c111a, roughness: 0.7, metalness: 0.6 });
+const tapaMat = new THREE.MeshStandardMaterial({ color: 0x8090a0, roughness: 0.6, metalness: 0.6 });
 const tapaH   = 0.28;
-const tapa    = new THREE.Mesh(new THREE.BoxGeometry(BW + 0.08, tapaH, BD + 0.08), tapaMat);
-tapa.position.set(0, roofY + tapaH / 2, 0);
+const tapa    = new THREE.Mesh(new THREE.BoxGeometry(1.2, tapaH, BD + 0.08), tapaMat);
+tapa.position.set(-(BW / 2 - 0.6), roofY + tapaH / 2, 0);
 tapa.castShadow = true;
 scene.add(tapa);
 
@@ -431,51 +431,53 @@ helDisc.rotation.x = -Math.PI / 2;
 helDisc.position.set(0, helY + 0.115, 0);
 scene.add(helDisc);
 
-// ── Letrero PDI — extremo derecho del piso 25 ────────────────
-// Panel físico que sobresale de la fachada con el logo PDI
-const signW = 1.2, signH = 0.52, signD = 0.14; // ancho, alto, profundidad del letrero
-const signX = BW / 2 - signW / 2 - 0.06;       // alineado a la derecha del edificio
-const signY = floorY[26] + getFH(26) / 2;        // centrado en el piso 25 (índice 26)
-const signZ = BD / 2 + signD / 2 + 0.015;       // sobresale de la fachada frontal
+// ── Letrero PDI — lado izquierdo, en cada cara del edificio ─
+const signW = 1.2, signH = 0.52, signD = 0.14;
+const signY = floorY[26] + getFH(26) / 2;
 
-// Caja de respaldo del letrero (color azul PDI)
-const signBox = new THREE.Mesh(
-  new THREE.BoxGeometry(signW, signH, signD),
-  new THREE.MeshStandardMaterial({ color: 0x102B6B, roughness: 0.5, metalness: 0.85 })
-);
-signBox.position.set(signX, signY, signZ);
-scene.add(signBox);
-
-// Marco metálico perimetral del letrero (4 tiras delgadas)
-const rimMat = new THREE.MeshStandardMaterial({ color: 0x2a2e38, roughness: 0.4, metalness: 0.95 });
-[
-  { w: signW, h: 0.03, x: 0,                   y:  signH / 2 - 0.015 }, // borde superior
-  { w: signW, h: 0.03, x: 0,                   y: -signH / 2 + 0.015 }, // borde inferior
-  { w: 0.03,  h: signH, x: -signW / 2 + 0.015, y: 0 },                  // borde izquierdo
-  { w: 0.03,  h: signH, x:  signW / 2 - 0.015, y: 0 },                  // borde derecho
-].forEach(({ w, h, x, y }) => {
-  const rim = new THREE.Mesh(new THREE.BoxGeometry(w, h, signD + 0.01), rimMat);
-  rim.position.set(signX + x, signY + y, signZ);
-  scene.add(rim);
-});
-
-// Logo PDI: SVG inline convertido a base64 → textura Three.js
-// Para cambiar el logo modificar el SVG dentro del template literal
-const pdiSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="220" viewBox="0 0 600 220">
+const _signBoxMat = new THREE.MeshStandardMaterial({ color: 0x102B6B, roughness: 0.5, metalness: 0.85 });
+const _rimMat     = new THREE.MeshStandardMaterial({ color: 0x2a2e38, roughness: 0.4, metalness: 0.95 });
+const _pdiSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="220" viewBox="0 0 600 220">
   <rect width="600" height="220" fill="#102B6B"/>
   <text x="300" y="178"
     font-family="Georgia,'Palatino Linotype',serif"
     font-size="188" font-weight="bold"
     fill="#F5C200" text-anchor="middle" letter-spacing="6">PDI</text>
 </svg>`;
-const pdiUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(pdiSvg)));
-const pdiTex = new THREE.TextureLoader().load(pdiUrl);
-const pdiText = new THREE.Mesh(
-  new THREE.PlaneGeometry(signW - 0.01, signH - 0.01),
-  new THREE.MeshBasicMaterial({ map: pdiTex })
-);
-pdiText.position.set(signX, signY, signZ + signD / 2 + 0.002); // pegado a la cara frontal
-scene.add(pdiText);
+const _pdiUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(_pdiSvg)));
+const _pdiTex = new THREE.TextureLoader().load(_pdiUrl);
+const _pdiMat = new THREE.MeshBasicMaterial({ map: _pdiTex });
+
+function buildSign(cx, cy, cz, ry) {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(signW, signH, signD), _signBoxMat));
+  [
+    { w: signW,  h: 0.03,  x: 0,               y:  signH / 2 - 0.015 },
+    { w: signW,  h: 0.03,  x: 0,               y: -signH / 2 + 0.015 },
+    { w: 0.03,   h: signH, x: -signW/2 + 0.015, y: 0 },
+    { w: 0.03,   h: signH, x:  signW/2 - 0.015, y: 0 },
+  ].forEach(({ w, h, x, y }) => {
+    const rim = new THREE.Mesh(new THREE.BoxGeometry(w, h, signD + 0.01), _rimMat);
+    rim.position.set(x, y, 0);
+    g.add(rim);
+  });
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(signW - 0.01, signH - 0.01), _pdiMat);
+  face.position.set(0, 0, signD / 2 + 0.002);
+  g.add(face);
+  g.position.set(cx, cy, cz);
+  g.rotation.y = ry;
+  scene.add(g);
+}
+
+// x del letrero en cara frontal/trasera: alineado a la izquierda del edificio
+const _sLX  = -(BW / 2 - signW / 2 - 0.06);        // -1.14
+const _sFZ  =   BD / 2 + signD / 2 + 0.015;         // distancia desde centro
+const _sSX  =   BW / 2 + signD / 2 + 0.015;         // distancia desde centro en cara lateral
+
+buildSign( _sLX,  signY,  _sFZ,  0);                 // cara frontal
+buildSign(-_sLX,  signY, -_sFZ,  Math.PI);           // cara trasera
+buildSign(-_sSX,  signY,  0,    -Math.PI / 2);        // cara izquierda
+buildSign( _sSX,  signY,  0,     Math.PI / 2);        // cara derecha
 
 // ── Suelo / terreno ───────────────────────────────────────────
 // Plano gris oscuro de 80×80 unidades que recibe sombras
@@ -510,7 +512,7 @@ const periY = GROUND_Y - periH / 2;
 // ── Bigas cuadradas en esquinas de la base menor ──────────────
 // Sección pisos 1-5: base menor en lado DERECHO (x=+BW/2)
 // Las bigas van en los dos ángulos del lado corto: frontal y trasero
-const bigaMat = new THREE.MeshStandardMaterial({ color: 0x070d18, roughness: 0.75, metalness: 0.5 });
+const bigaMat = new THREE.MeshStandardMaterial({ color: 0x8090a0, roughness: 0.65, metalness: 0.5 });
 const bigaSize = 0.20;  // sección cuadrada de la biga
 
 // floorY[7] = base del piso 6 (incluye el spandrel encima del piso 5)
