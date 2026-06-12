@@ -168,7 +168,7 @@ const FH   = 0.28;    // altura estándar del vidrio por piso
 const BH   = 0.20;    // altura del spandrel entre pisos
 const STEP = FH + BH; // paso de referencia
 const BW   = 3.6;     // ancho del edificio (eje X)  ← modificar
-const BD   = 2.8;     // profundidad base mayor (eje Z) ← modificar
+const BD   = 4.0;     // profundidad base mayor (eje Z)
 
 // ── Forma del edificio ────────────────────────────────────────
 // Trapecio HORIZONTAL (acostado): los lados paralelos son las caras
@@ -179,7 +179,8 @@ const BD   = 2.8;     // profundidad base mayor (eje Z) ← modificar
 //  Pisos 6-21:  rectangular (dL=dR=BD)
 //  Pisos 22-25: trapecio girado 180° — base mayor DERECHA, base menor IZQUIERDA
 //
-const TRAP_TAPER   = 1.12;  // diferencia de profundidad entre base mayor y base menor
+const TRAP_TAPER   = 2.32;  // diferencia de profundidad base mayor → base menor (BD_minor = 1.68)
+const OBLIQUE_CURVE = 0.3;   // curvatura hacia adentro de los lados oblicuos
 const FLOOR1_EXTRA = 0.27;  // altura extra del piso 1 (hall de acceso)
 
 // Altura del piso (piso 1 = índice 2 tiene mayor altura)
@@ -197,13 +198,14 @@ function getFloorDepths(i) {
 //   (x, y_shape) → world (x, z=−y_shape) → planta en X-Z, extrusión sube en Y.
 function makeFloorGeo(dL, dR, fh) {
   if (Math.abs(dL - dR) < 0.001) return new THREE.BoxGeometry(BW, fh, dL);
-  const s = new THREE.Shape();
-  s.moveTo(-BW/2, -dL/2); // esquina frontal-izquierda
-  s.lineTo(+BW/2, -dR/2); // esquina frontal-derecha
-  s.lineTo(+BW/2, +dR/2); // esquina trasera-derecha
-  s.lineTo(-BW/2, +dL/2); // esquina trasera-izquierda
+  const cv = OBLIQUE_CURVE;
+  const s  = new THREE.Shape();
+  s.moveTo(-BW/2, -dL/2);
+  s.quadraticCurveTo(0, -(dL+dR)/4 + cv, +BW/2, -dR/2); // frontal oblicuo curvo
+  s.lineTo(+BW/2, +dR/2);
+  s.quadraticCurveTo(0,  (dL+dR)/4 - cv, -BW/2, +dL/2); // trasero oblicuo curvo
   s.closePath();
-  const geo = new THREE.ExtrudeGeometry(s, { depth: fh, bevelEnabled: false });
+  const geo = new THREE.ExtrudeGeometry(s, { depth: fh, bevelEnabled: false, curveSegments: 16 });
   geo.applyMatrix4(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
   geo.applyMatrix4(new THREE.Matrix4().makeTranslation(0, -fh/2, 0));
   return geo;
@@ -331,10 +333,16 @@ FLOORS.forEach((f, i) => {
 const mOff = 0.015; // separación vidrio-montante
 
 function zFrontal(xm, zone) {
-  const t = (xm + BW/2) / BW; // 0 en x=-BW/2 (izq), 1 en x=+BW/2 (der)
-  if (zone === 'low')  return BD/2 - t * TRAP_TAPER/2;               // pisos 1-5: izq=BD/2, der=(BD-TAPER)/2
-  if (zone === 'high') return (BD - TRAP_TAPER)/2 + t * TRAP_TAPER/2; // pisos 22-25: izq=(BD-TAPER)/2, der=BD/2
-  return BD/2;                                                          // rectangular
+  const t  = (xm + BW/2) / BW;
+  // punto de control bezier: mitad entre extremos, desplazado OBLIQUE_CURVE hacia adentro
+  const Pm = (BD/2 + (BD-TRAP_TAPER)/2) / 2 - OBLIQUE_CURVE;
+  if (zone === 'low')  { // pisos 1-5: P0=BD/2 (izq), P2=BD_minor/2 (der)
+    return (1-t)*(1-t)*(BD/2) + 2*t*(1-t)*Pm + t*t*((BD-TRAP_TAPER)/2);
+  }
+  if (zone === 'high') { // pisos 22-25: P0=BD_minor/2 (izq), P2=BD/2 (der)
+    return (1-t)*(1-t)*((BD-TRAP_TAPER)/2) + 2*t*(1-t)*Pm + t*t*(BD/2);
+  }
+  return BD/2;
 }
 
 // Cuatro zonas de altura con su tipo de sección
@@ -345,9 +353,9 @@ const mullZones = [
   { y0: floorY[23], y1: TOTAL_H,    zone: 'high' }, // pisos 22-25
 ];
 
-// 8 montantes en cara frontal y trasera
-for (let m = 0; m <= 7; m++) {
-  const xm = -BW/2 + m * (BW/7);
+// 14 montantes en cara frontal y trasera (13 ventanas)
+for (let m = 0; m <= 13; m++) {
+  const xm = -BW/2 + m * (BW/13);
   mullZones.forEach(({ y0, y1, zone }) => {
     const h  = y1 - y0;
     const zf = zFrontal(xm, zone) + mOff;
@@ -361,7 +369,7 @@ for (let m = 0; m <= 7; m++) {
 
 // 6 montantes en caras laterales — solo se colocan dentro del ancho de
 // cada cara en cada zona (las trapezoidales son más cortas en un lado).
-const sideZs = Array.from({ length: 6 }, (_, m) => -BD/2 + m * (BD/5));
+const sideZs = Array.from({ length: 27 }, (_, m) => -BD/2 + m * (BD/26)); // 26 ventanas base mayor, 10 base menor
 mullZones.forEach(({ y0, y1, zone }) => {
   const h   = y1 - y0;
   const dL  = zone === 'high' ? BD - TRAP_TAPER : BD; // profundidad cara izquierda
