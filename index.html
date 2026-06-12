@@ -323,28 +323,62 @@ FLOORS.forEach((f, i) => {
 });
 
 // ── Montantes verticales de fachada (mullions) ────────────────
-// Se dibujan sobre las caras frontal/trasera (eje Z) y laterales (eje X)
-// Cambia los números del loop para más o menos columnas de aluminio
-const mH = TOTAL_H + 0.05; // altura total del montante (igual que el edificio)
+// Los montantes se segmentan por zona para que siempre queden pegados
+// a la cara de vidrio, incluso en las secciones trapezoidales.
+//
+// zFrontal(xm, zona): devuelve la z de la cara frontal en la posición xm
+// para cada zona del edificio (trapecio inferior, cuerpo recto, trapecio superior).
+const mOff = 0.015; // separación vidrio-montante
 
-// 8 montantes en cara frontal y trasera (distribuidos en ancho BW)
+function zFrontal(xm, zone) {
+  const t = (xm + BW/2) / BW; // 0 en x=-BW/2 (izq), 1 en x=+BW/2 (der)
+  if (zone === 'low')  return BD/2 - t * TRAP_TAPER/2;               // pisos 1-5: izq=BD/2, der=(BD-TAPER)/2
+  if (zone === 'high') return (BD - TRAP_TAPER)/2 + t * TRAP_TAPER/2; // pisos 22-25: izq=(BD-TAPER)/2, der=BD/2
+  return BD/2;                                                          // rectangular
+}
+
+// Cuatro zonas de altura con su tipo de sección
+const mullZones = [
+  { y0: 0,          y1: floorY[2],  zone: 'rect' }, // S2, S1
+  { y0: floorY[2],  y1: floorY[7],  zone: 'low'  }, // pisos 1-5
+  { y0: floorY[7],  y1: floorY[23], zone: 'rect' }, // pisos 6-21
+  { y0: floorY[23], y1: TOTAL_H,    zone: 'high' }, // pisos 22-25
+];
+
+// 8 montantes en cara frontal y trasera
 for (let m = 0; m <= 7; m++) {
-  const x = -BW / 2 + m * (BW / 7); // posición X equidistante
-  for (const zo of [BD / 2 + 0.015, -(BD / 2 + 0.015)]) { // frente y atrás
-    const ml = new THREE.Mesh(new THREE.BoxGeometry(0.045, mH, 0.05), mullionMat);
-    ml.position.set(x, mH / 2, zo);
-    scene.add(ml);
-  }
+  const xm = -BW/2 + m * (BW/7);
+  mullZones.forEach(({ y0, y1, zone }) => {
+    const h  = y1 - y0;
+    const zf = zFrontal(xm, zone) + mOff;
+    for (const zo of [zf, -zf]) {
+      const ml = new THREE.Mesh(new THREE.BoxGeometry(0.045, h, 0.05), mullionMat);
+      ml.position.set(xm, y0 + h/2, zo);
+      scene.add(ml);
+    }
+  });
 }
-// 6 montantes en caras laterales (distribuidos en profundidad BD)
-for (let m = 0; m <= 5; m++) {
-  const z = -BD / 2 + m * (BD / 5); // posición Z equidistante
-  for (const xo of [BW / 2 + 0.015, -(BW / 2 + 0.015)]) { // izquierda y derecha
-    const ml = new THREE.Mesh(new THREE.BoxGeometry(0.05, mH, 0.045), mullionMat);
-    ml.position.set(xo, mH / 2, z);
-    scene.add(ml);
-  }
-}
+
+// 6 montantes en caras laterales — solo se colocan dentro del ancho de
+// cada cara en cada zona (las trapezoidales son más cortas en un lado).
+const sideZs = Array.from({ length: 6 }, (_, m) => -BD/2 + m * (BD/5));
+mullZones.forEach(({ y0, y1, zone }) => {
+  const h   = y1 - y0;
+  const dL  = zone === 'high' ? BD - TRAP_TAPER : BD; // profundidad cara izquierda
+  const dR  = zone === 'low'  ? BD - TRAP_TAPER : BD; // profundidad cara derecha
+  sideZs.forEach(zm => {
+    if (Math.abs(zm) <= dL/2 + mOff) {
+      const ml = new THREE.Mesh(new THREE.BoxGeometry(0.05, h, 0.045), mullionMat);
+      ml.position.set(-(BW/2 + mOff), y0 + h/2, zm);
+      scene.add(ml);
+    }
+    if (Math.abs(zm) <= dR/2 + mOff) {
+      const ml = new THREE.Mesh(new THREE.BoxGeometry(0.05, h, 0.045), mullionMat);
+      ml.position.set(+(BW/2 + mOff), y0 + h/2, zm);
+      scene.add(ml);
+    }
+  });
+});
 
 const roofY = TOTAL_H;
 const BD_minor = BD - TRAP_TAPER; // profundidad base menor
