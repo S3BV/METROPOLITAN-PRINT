@@ -387,8 +387,8 @@ const BD_minor = BD - TRAP_TAPER; // profundidad base menor
 // Losa plana que cierra el techo y sirve de base al helipuerto
 const tapaMat = new THREE.MeshStandardMaterial({ color: 0x0c111a, roughness: 0.7, metalness: 0.6 });
 const tapaH   = 0.28;
-const tapa    = new THREE.Mesh(new THREE.BoxGeometry(BW + 0.08, 0.56, BD + 0.08), tapaMat);
-tapa.position.set(0, roofY + 0.28, 0);
+const tapa    = new THREE.Mesh(new THREE.BoxGeometry(BW + 0.08, 0.50, BD + 0.08), tapaMat);
+tapa.position.set(0, roofY + 0.25, 0);
 tapa.castShadow = true;
 scene.add(tapa);
 
@@ -435,7 +435,7 @@ scene.add(helDisc);
 // Panel físico que sobresale de la fachada con el logo PDI
 const signW = 1.2, signH = 0.52, signD = 0.14; // ancho, alto, profundidad del letrero
 const signX = -(BW / 2 - signW / 2 - 0.06);     // alineado a la izquierda del edificio
-const signY = floorY[26] + getFH(26) / 2;        // centrado en el piso 25 (índice 26)
+const signY = roofY + 0.25;                       // centrado en el grosor de la tapa
 const signZ = (BD - TRAP_TAPER) / 2 + signD + 0.02; // ajustado para cara izquierda del trapecio superior
 
 // Caja de respaldo del letrero (color azul PDI)
