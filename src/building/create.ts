@@ -194,6 +194,36 @@ export function createBuilding(scene: THREE.Scene, floors: Floor[]): BuildingRes
   pdiText.position.set(signX, signY, signZ + signD / 2 + 0.002);
   scene.add(pdiText);
 
+  // ── PDI Sign — cara lateral derecha (+X) ─────────────────────
+  const sign2X = (BW + 0.08) / 2 + signD / 2 + 0.015;
+  const sign2Z = 0; // centrado en la cara lateral
+
+  const signBox2 = new THREE.Mesh(
+    new THREE.BoxGeometry(signD, signH, signW),
+    new THREE.MeshStandardMaterial({ color: 0x102B6B, roughness: 0.5, metalness: 0.85 }),
+  );
+  signBox2.position.set(sign2X, signY, sign2Z);
+  scene.add(signBox2);
+
+  ([
+    { rz: 0,                   ry:  signH / 2 - 0.015, isH: true  },
+    { rz: 0,                   ry: -signH / 2 + 0.015, isH: true  },
+    { rz:  signW / 2 - 0.015,  ry: 0,                  isH: false },
+    { rz: -signW / 2 + 0.015,  ry: 0,                  isH: false },
+  ]).forEach(({ rz, ry, isH }) => {
+    const rim = new THREE.Mesh(new THREE.BoxGeometry(signD + 0.01, isH ? 0.03 : signH, isH ? signW : 0.03), rimMat);
+    rim.position.set(sign2X, signY + ry, sign2Z + rz);
+    scene.add(rim);
+  });
+
+  const pdiText2 = new THREE.Mesh(
+    new THREE.PlaneGeometry(signW - 0.01, signH - 0.01),
+    new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load(pdiUrl) }),
+  );
+  pdiText2.rotation.y = Math.PI / 2;
+  pdiText2.position.set(sign2X + signD / 2 + 0.002, signY, sign2Z);
+  scene.add(pdiText2);
+
   // ── Ground ───────────────────────────────────────────────────
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(80, 80),
