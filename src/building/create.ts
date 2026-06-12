@@ -194,36 +194,69 @@ export function createBuilding(scene: THREE.Scene, floors: Floor[]): BuildingRes
   pdiText.position.set(signX, signY, signZ + signD / 2 + 0.002);
   scene.add(pdiText);
 
-  // ── PDI Sign — cara lateral izquierda (-X) ───────────────────
-  // Queda en la esquina superior izquierda del edificio desde la cámara frontal.
-  const sign2X = -((BW + 0.08) / 2 + signD / 2 + 0.015); // sobresale hacia -X
-  const sign2Z = +(BD / 2 - signW / 2 - 0.06);            // cerca del borde frontal (+Z)
+  // ── PDI Signs — caras lateral izquierda, lateral derecha y trasera ──
+  // Cada letrero va en la esquina superior izquierda de su cara (mirando desde afuera).
+  // "Superior izquierda" se determina con cross(viewing_dir, up):
+  //   cara -X (izq): LEFT = -Z  →  sign2Z = -(BD/2 - signW/2 - 0.06)
+  //   cara +X (der): LEFT = +Z  →  sign3Z = +(BD/2 - signW/2 - 0.06)
+  //   cara -Z (tra): LEFT = +X  →  sign4X = +(BW/2 - signW/2 - 0.06)
 
-  const signBox2 = new THREE.Mesh(
-    new THREE.BoxGeometry(signD, signH, signW),
-    new THREE.MeshStandardMaterial({ color: 0x102B6B, roughness: 0.5, metalness: 0.85 }),
-  );
-  signBox2.position.set(sign2X, signY, sign2Z);
-  scene.add(signBox2);
+  const pdiMat  = new THREE.MeshStandardMaterial({ color: 0x102B6B, roughness: 0.5, metalness: 0.85 });
+  const pdiLoad = () => new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load(pdiUrl) });
 
-  ([
-    { rz: 0,                   ry:  signH / 2 - 0.015, isH: true  },
-    { rz: 0,                   ry: -signH / 2 + 0.015, isH: true  },
-    { rz:  signW / 2 - 0.015,  ry: 0,                  isH: false },
-    { rz: -signW / 2 + 0.015,  ry: 0,                  isH: false },
-  ]).forEach(({ rz, ry, isH }) => {
-    const rim = new THREE.Mesh(new THREE.BoxGeometry(signD + 0.01, isH ? 0.03 : signH, isH ? signW : 0.03), rimMat);
-    rim.position.set(sign2X, signY + ry, sign2Z + rz);
-    scene.add(rim);
-  });
+  // Helper: letrero lateral (caja delgada en X, ancha en Z)
+  function addLateralSign(cx: number, cz: number, rotY: number, textDx: number) {
+    const box = new THREE.Mesh(new THREE.BoxGeometry(signD, signH, signW), pdiMat);
+    box.position.set(cx, signY, cz);
+    scene.add(box);
+    ([
+      { rz: 0,                  ry:  signH / 2 - 0.015, isH: true  },
+      { rz: 0,                  ry: -signH / 2 + 0.015, isH: true  },
+      { rz: signW / 2 - 0.015,  ry: 0,                  isH: false },
+      { rz: -signW / 2 + 0.015, ry: 0,                  isH: false },
+    ]).forEach(({ rz, ry, isH }) => {
+      const r = new THREE.Mesh(new THREE.BoxGeometry(signD + 0.01, isH ? 0.03 : signH, isH ? signW : 0.03), rimMat);
+      r.position.set(cx, signY + ry, cz + rz);
+      scene.add(r);
+    });
+    const txt = new THREE.Mesh(new THREE.PlaneGeometry(signW - 0.01, signH - 0.01), pdiLoad());
+    txt.rotation.y = rotY;
+    txt.position.set(cx + textDx, signY, cz);
+    scene.add(txt);
+  }
 
-  const pdiText2 = new THREE.Mesh(
-    new THREE.PlaneGeometry(signW - 0.01, signH - 0.01),
-    new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load(pdiUrl) }),
-  );
-  pdiText2.rotation.y = -Math.PI / 2; // cara hacia -X (exterior izquierdo)
-  pdiText2.position.set(sign2X - signD / 2 - 0.002, signY, sign2Z);
-  scene.add(pdiText2);
+  // Helper: letrero frontal/trasero (caja ancha en X, delgada en Z)
+  function addFrontalSign(cx: number, cz: number, rotY: number, textDz: number) {
+    const box = new THREE.Mesh(new THREE.BoxGeometry(signW, signH, signD), pdiMat);
+    box.position.set(cx, signY, cz);
+    scene.add(box);
+    ([
+      { w: signW, rh: 0.03,  dx: 0,                  ry:  signH / 2 - 0.015 },
+      { w: signW, rh: 0.03,  dx: 0,                  ry: -signH / 2 + 0.015 },
+      { w: 0.03,  rh: signH, dx: -signW / 2 + 0.015, ry: 0 },
+      { w: 0.03,  rh: signH, dx:  signW / 2 - 0.015, ry: 0 },
+    ]).forEach(({ w, rh, dx, ry }) => {
+      const r = new THREE.Mesh(new THREE.BoxGeometry(w, rh, signD + 0.01), rimMat);
+      r.position.set(cx + dx, signY + ry, cz);
+      scene.add(r);
+    });
+    const txt = new THREE.Mesh(new THREE.PlaneGeometry(signW - 0.01, signH - 0.01), pdiLoad());
+    txt.rotation.y = rotY;
+    txt.position.set(cx, signY, cz + textDz);
+    scene.add(txt);
+  }
+
+  const latOff = (BW + 0.08) / 2 + signD / 2 + 0.015; // offset X desde eje hasta cara lateral
+  const zEdge  = BD / 2 - signW / 2 - 0.06;            // offset Z desde eje hasta borde del letrero
+
+  // Cara lateral izquierda (-X): upper-left desde afuera = -Z
+  addLateralSign(-latOff, -zEdge, -Math.PI / 2, -(signD / 2 + 0.002));
+
+  // Cara lateral derecha (+X): upper-left desde afuera = +Z
+  addLateralSign(+latOff, +zEdge, +Math.PI / 2, +(signD / 2 + 0.002));
+
+  // Cara trasera (-Z): upper-left desde afuera = +X
+  addFrontalSign(+(BW / 2 - signW / 2 - 0.06), -signZ, Math.PI, -(signD / 2 + 0.002));
 
   // ── Ground ───────────────────────────────────────────────────
   const ground = new THREE.Mesh(
