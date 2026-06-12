@@ -506,7 +506,8 @@ const bigaSize = 0.30;  // sección cuadrada de la biga
 
 const botSecH = (floorY[6] + getFH(6)) - floorY[2];
 const botSecY = floorY[2] + botSecH / 2;
-[+BD_minor/2, -BD_minor/2].forEach(cz => {
+// z = ±BD/2: esquinas de la cara inferior del piso 6 (rectangular)
+[+BD/2, -BD/2].forEach(cz => {
   const b = new THREE.Mesh(new THREE.BoxGeometry(bigaSize, botSecH, bigaSize), bigaMat);
   b.position.set(+BW/2, botSecY, cz);
   b.castShadow = true; scene.add(b);
