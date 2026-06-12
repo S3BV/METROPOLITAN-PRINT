@@ -516,7 +516,8 @@ const botSecY = floorY[2] + botSecH / 2;
 // Sección pisos 22-25: base menor en lado IZQUIERDO (x=-BW/2)
 const topSecH = (floorY[26] + getFH(26)) - floorY[23];
 const topSecY = floorY[23] + topSecH / 2;
-[+BD_minor/2, -BD_minor/2].forEach(cz => {
+// z = ±BD/2: esquinas de la cara inferior del piso 22 (rectangular)
+[+BD/2, -BD/2].forEach(cz => {
   const b = new THREE.Mesh(new THREE.BoxGeometry(bigaSize, topSecH, bigaSize), bigaMat);
   b.position.set(-BW/2, topSecY, cz);
   b.castShadow = true; scene.add(b);
