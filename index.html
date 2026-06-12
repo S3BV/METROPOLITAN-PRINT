@@ -188,10 +188,9 @@ function getFH(i) { return i === 2 ? FH + FLOOR1_EXTRA : FH; }
 
 // Profundidades izquierda/derecha según sección del edificio
 function getFloorDepths(i) {
-  if (i === 2)           return { dL: 3.0, dR: 3.0 };              // piso 1: lobby rectangular retraído
-  if (i >= 3 && i <= 6) return { dL: BD, dR: BD - TRAP_TAPER };   // pisos 2-5: trapecio completo (voladizo)
-  if (i >= 23)          return { dL: BD - TRAP_TAPER, dR: BD };    // pisos 22-25
-  return { dL: BD, dR: BD };                                         // rectangular
+  if (i >= 2 && i <= 6) return { dL: BD, dR: BD - TRAP_TAPER };  // pisos 1-5
+  if (i >= 23)          return { dL: BD - TRAP_TAPER, dR: BD };   // pisos 22-25
+  return { dL: BD, dR: BD };                                        // rectangular
 }
 
 // Geometría de losa trapezoidal horizontal.
@@ -294,30 +293,26 @@ FLOORS.forEach((f, i) => {
   const dAvg = (dL + dR) / 2;
 
   // Losa con planta trapezoidal o rectangular según sección
-  // Piso 1 (i=2) retraído: offset Z para alinear cara trasera con el resto
-  const lobbyZOff = (i === 2) ? -(BD/2 - 1.5) : 0;
-
   const mesh = new THREE.Mesh(makeFloorGeo(dL, dR, fh), mkGlass(baseHex(f.p, f.yellow)));
-  mesh.position.set(0, y + fh/2, lobbyZOff);
+  mesh.position.set(0, y + fh/2, 0);
   mesh.castShadow = true; mesh.receiveShadow = true;
   mesh.userData.idx = i;
   scene.add(mesh); floorMeshes.push(mesh);
 
   // Mitades para estado mixto (profundidad promedio, rectangular aproximado)
   const meshL = new THREE.Mesh(new THREE.BoxGeometry(BW/2, fh, dAvg), mkGlass(0x00c46a));
-  meshL.position.set(-BW/4, y + fh/2, lobbyZOff);
+  meshL.position.set(-BW/4, y + fh/2, 0);
   meshL.castShadow = true; meshL.userData.idx = i; meshL.visible = false;
   scene.add(meshL); floorMeshesL.push(meshL);
 
   const meshR = new THREE.Mesh(new THREE.BoxGeometry(BW/2, fh, dAvg), mkGlass(0xffa000));
-  meshR.position.set(BW/4, y + fh/2, lobbyZOff);
+  meshR.position.set(BW/4, y + fh/2, 0);
   meshR.castShadow = true; meshR.userData.idx = i; meshR.visible = false;
   scene.add(meshR); floorMeshesR.push(meshR);
 
-  // Spandrel: piso 1 usa spandrel con el ancho trapezoidal de piso 2 (voladizo visible)
+  // Spandrel con la misma planta trapezoidal que la losa
   if (i < N - 1) {
-    const { dL: dLs, dR: dRs } = (i === 2) ? getFloorDepths(3) : { dL, dR };
-    const band = new THREE.Mesh(makeFloorGeo(dLs + 0.08, dRs + 0.08, BH), spandrelMat);
+    const band = new THREE.Mesh(makeFloorGeo(dL + 0.08, dR + 0.08, BH), spandrelMat);
     band.position.set(0, y + fh + BH/2, 0);
     band.castShadow = true; scene.add(band);
   }
@@ -327,18 +322,6 @@ FLOORS.forEach((f, i) => {
   sprite.scale.set(0.58, 0.29, 1);
   sprite.position.set(BW/2 + 0.46, y + fh/2, 0);
   scene.add(sprite);
-});
-
-
-// ── Columnas de lobby (voladizo pisos 2-5 sobre piso 1) ──────────────────────
-const lobbyColMat = new THREE.MeshStandardMaterial({ color: 0x70787f, roughness: 0.85, metalness: 0.15 });
-const lobbyColH   = floorY[3] - GROUND_Y; // desde suelo hasta la losa del piso 2
-const lobbyColY   = GROUND_Y + lobbyColH / 2;
-const lobbyColZ   = 0.2; // centradas dentro del lobby (cara trasera del voladizo)
-[-1.2, 0, 1.2].forEach(cx => {
-  const col = new THREE.Mesh(new THREE.BoxGeometry(0.28, lobbyColH, 0.28), lobbyColMat);
-  col.position.set(cx, lobbyColY, lobbyColZ);
-  col.castShadow = true; scene.add(col);
 });
 
 // ── Montantes verticales de fachada (mullions) ────────────────
@@ -536,7 +519,7 @@ const periY = GROUND_Y - periH / 2;
 // Sección pisos 1-5: base menor en lado DERECHO (x=+BW/2)
 // Las bigas van en los dos ángulos del lado corto: frontal y trasero
 const bigaMat = new THREE.MeshStandardMaterial({ color: 0x070d18, roughness: 0.75, metalness: 0.5 });
-const bigaSize = 0.30;  // sección cuadrada de la biga (pilares prominentes)
+const bigaSize = 0.20;  // sección cuadrada de la biga
 
 // floorY[7] = base del piso 6 (incluye el spandrel encima del piso 5)
 const botSecH = floorY[7] - floorY[2];
