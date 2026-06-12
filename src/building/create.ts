@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { BW, BD, BH, TRAP_TAPER } from '../constants';
-import { makeFloorGeo, getFloorDepths, getFH, zFrontal, computeFloorY } from './geo';
+import { makeFloorGeo, getFloorDepths, getFH, computeFloorY } from './geo';
 import { mkGlass, baseHex, spandrelMat, mullionMat, tapaMat, bigaMat } from './materials';
 import type { Floor, FloorZone } from '../types';
 
@@ -78,18 +78,35 @@ export function createBuilding(scene: THREE.Scene, floors: Floor[]): BuildingRes
     { y0: floorY[23], y1: TOTAL_H,    zone: 'high' },
   ];
 
-  for (let m = 0; m <= 13; m++) {
-    const xm = -BW/2 + m * (BW/13);
-    mullZones.forEach(({ y0, y1, zone }) => {
-      const h  = y1 - y0;
-      const zf = zFrontal(xm, zone) + mOff;
-      for (const zo of [zf, -zf]) {
-        const ml = new THREE.Mesh(new THREE.BoxGeometry(0.045, h, 0.05), mullionMat);
-        ml.position.set(xm, y0 + h/2, zo);
-        scene.add(ml);
-      }
+  // ── Mullion overlay — cara frontal y trasera ─────────────────
+  // Canvas transparente con tiras grises: el GPU hace mipmap correcto
+  // y elimina el moiré que causaban los BoxGeometry de 0.045u de ancho.
+  (function addMullionOverlays() {
+    const W = 1024, H = 32;
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d')!;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#4f5154';
+    for (let m = 0; m <= 13; m++) {
+      const cx = Math.round(m * W / 13);
+      ctx.fillRect(cx - 6, 0, 12, H);
+    }
+    const tex = new THREE.CanvasTexture(cv);
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
+    const zOvl = BD / 2 + 0.02;
+    mullZones.forEach(({ y0, y1 }) => {
+      const h = y1 - y0;
+      const front = new THREE.Mesh(new THREE.PlaneGeometry(BW, h), mat);
+      front.position.set(0, y0 + h / 2, zOvl);
+      scene.add(front);
+      const back = new THREE.Mesh(new THREE.PlaneGeometry(BW, h), mat);
+      back.position.set(0, y0 + h / 2, -zOvl);
+      back.rotation.y = Math.PI;
+      scene.add(back);
     });
-  }
+  })();
 
   const sideZs = Array.from({ length: 15 }, (_, m) => -BD/2 + m * (BD/14));
   mullZones.forEach(({ y0, y1, zone }) => {
