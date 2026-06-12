@@ -436,7 +436,7 @@ scene.add(helDisc);
 const signW = 1.2, signH = 0.52, signD = 0.14; // ancho, alto, profundidad del letrero
 const signX = -(BW / 2 - signW / 2 - 0.06);     // alineado a la izquierda del edificio
 const signY = roofY + 0.25;                       // centrado en el grosor de la tapa
-const signZ = (BD - TRAP_TAPER) / 2 + signD + 0.02; // ajustado para cara izquierda del trapecio superior
+const signZ = (BD + 0.08) / 2 + signD / 2 + 0.015;  // sobresale de la cara frontal de la tapa
 
 // Caja de respaldo del letrero (color azul PDI)
 const signBox = new THREE.Mesh(
