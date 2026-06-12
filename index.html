@@ -164,14 +164,56 @@ const FLOORS = [
 const N = FLOORS.length;
 
 // ── Constantes del edificio ───────────────────────────────────
-// AQUÍ SE CONTROLA LA FORMA Y PROPORCIÓN DEL EDIFICIO
-const FH   = 0.28;        // altura del vidrio de cada piso (floor height)
-const BH   = 0.09;        // altura de la banda spandrel entre pisos (beam height)
-const STEP = FH + BH;     // altura total por nivel = 0.37 unidades
-const BW   = 3.6;         // ancho del edificio (building width)  ← modificar para cambiar ancho
-const BD   = 2.8;         // profundidad del edificio (building depth) ← modificar para cambiar profundidad
-const GROUND_Y = 2 * STEP;   // altura donde comienza el piso 1 (por encima de S1/S2 subterráneos)
-const TOTAL_H  = N * STEP - BH; // altura total del edificio (~9.9 unidades)
+const FH   = 0.28;    // altura estándar del vidrio por piso
+const BH   = 0.09;    // altura del spandrel entre pisos
+const STEP = FH + BH; // paso de referencia
+const BW   = 3.6;     // ancho del edificio (eje X)  ← modificar
+const BD   = 2.8;     // profundidad base mayor (eje Z) ← modificar
+
+// ── Forma del edificio ────────────────────────────────────────
+// Trapecio HORIZONTAL (acostado): los lados paralelos son las caras
+// IZQUIERDA (x=-BW/2) y DERECHA (x=+BW/2); los lados oblicuos son
+// FRENTE (z+) y ATRÁS (z−).
+//
+//  Pisos 1-5:   base mayor IZQUIERDA (dL=BD), base menor DERECHA (dR=BD-TAPER)
+//  Pisos 6-21:  rectangular (dL=dR=BD)
+//  Pisos 22-25: trapecio girado 180° — base mayor DERECHA, base menor IZQUIERDA
+//
+const TRAP_TAPER   = 0.7;   // diferencia de profundidad entre base mayor y base menor
+const FLOOR1_EXTRA = 0.27;  // altura extra del piso 1 (hall de acceso)
+
+// Altura del piso (piso 1 = índice 2 tiene mayor altura)
+function getFH(i) { return i === 2 ? FH + FLOOR1_EXTRA : FH; }
+
+// Profundidades izquierda/derecha según sección del edificio
+function getFloorDepths(i) {
+  if (i >= 2 && i <= 6) return { dL: BD, dR: BD - TRAP_TAPER };  // pisos 1-5
+  if (i >= 23)          return { dL: BD - TRAP_TAPER, dR: BD };   // pisos 22-25
+  return { dL: BD, dR: BD };                                        // rectangular
+}
+
+// Geometría de losa trapezoidal horizontal.
+// Shape en plano X-Y extruido en Z, luego rotado −90° en X:
+//   (x, y_shape) → world (x, z=−y_shape) → planta en X-Z, extrusión sube en Y.
+function makeFloorGeo(dL, dR, fh) {
+  if (Math.abs(dL - dR) < 0.001) return new THREE.BoxGeometry(BW, fh, dL);
+  const s = new THREE.Shape();
+  s.moveTo(-BW/2, -dL/2); // esquina frontal-izquierda
+  s.lineTo(+BW/2, -dR/2); // esquina frontal-derecha
+  s.lineTo(+BW/2, +dR/2); // esquina trasera-derecha
+  s.lineTo(-BW/2, +dL/2); // esquina trasera-izquierda
+  s.closePath();
+  const geo = new THREE.ExtrudeGeometry(s, { depth: fh, bevelEnabled: false });
+  geo.applyMatrix4(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+  geo.applyMatrix4(new THREE.Matrix4().makeTranslation(0, -fh/2, 0));
+  return geo;
+}
+
+// Posición Y acumulada de cada piso (piso 1 desplaza todos los superiores)
+const floorY = [];
+{ let _cy = 0; for (let i = 0; i < N; i++) { floorY.push(_cy); _cy += getFH(i) + BH; } }
+const GROUND_Y = floorY[2];                   // nivel calle = base del piso 1
+const TOTAL_H  = floorY[N-1] + getFH(N-1);   // altura total del edificio
 
 // ── Scene ─────────────────────────────────────────────────────
 const wrap = document.getElementById('three-wrap');
@@ -243,42 +285,40 @@ const floorMeshesL = [];  // mitad izquierda (estado mixto – verde)
 const floorMeshesR = [];  // mitad derecha   (estado mixto – amarillo)
 
 FLOORS.forEach((f, i) => {
-  const y = i * STEP;
+  const y  = floorY[i];
+  const fh = getFH(i);
+  const { dL, dR } = getFloorDepths(i);
+  const dAvg = (dL + dR) / 2;
 
-  // Losa completa (visible por defecto, se oculta en estado mixto)
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(BW, FH, BD), mkGlass(baseHex(f.p, f.yellow)));
-  mesh.position.set(0, y + FH / 2, 0);
+  // Losa con planta trapezoidal o rectangular según sección
+  const mesh = new THREE.Mesh(makeFloorGeo(dL, dR, fh), mkGlass(baseHex(f.p, f.yellow)));
+  mesh.position.set(0, y + fh/2, 0);
   mesh.castShadow = true; mesh.receiveShadow = true;
   mesh.userData.idx = i;
-  scene.add(mesh);
-  floorMeshes.push(mesh);
+  scene.add(mesh); floorMeshes.push(mesh);
 
-  // Mitad izquierda — verde (oculta hasta estado mixto)
-  const meshL = new THREE.Mesh(new THREE.BoxGeometry(BW / 2, FH, BD), mkGlass(0x00c46a));
-  meshL.position.set(-BW / 4, y + FH / 2, 0);
+  // Mitades para estado mixto (profundidad promedio, rectangular aproximado)
+  const meshL = new THREE.Mesh(new THREE.BoxGeometry(BW/2, fh, dAvg), mkGlass(0x00c46a));
+  meshL.position.set(-BW/4, y + fh/2, 0);
   meshL.castShadow = true; meshL.userData.idx = i; meshL.visible = false;
-  scene.add(meshL);
-  floorMeshesL.push(meshL);
+  scene.add(meshL); floorMeshesL.push(meshL);
 
-  // Mitad derecha — amarilla (oculta hasta estado mixto)
-  const meshR = new THREE.Mesh(new THREE.BoxGeometry(BW / 2, FH, BD), mkGlass(0xffa000));
-  meshR.position.set(BW / 4, y + FH / 2, 0);
+  const meshR = new THREE.Mesh(new THREE.BoxGeometry(BW/2, fh, dAvg), mkGlass(0xffa000));
+  meshR.position.set(BW/4, y + fh/2, 0);
   meshR.castShadow = true; meshR.userData.idx = i; meshR.visible = false;
-  scene.add(meshR);
-  floorMeshesR.push(meshR);
+  scene.add(meshR); floorMeshesR.push(meshR);
 
-  // Spandrel band
+  // Spandrel con la misma planta trapezoidal que la losa
   if (i < N - 1) {
-    const band = new THREE.Mesh(new THREE.BoxGeometry(BW + 0.08, BH, BD + 0.08), spandrelMat);
-    band.position.set(0, y + FH + BH / 2, 0);
-    band.castShadow = true;
-    scene.add(band);
+    const band = new THREE.Mesh(makeFloorGeo(dL + 0.08, dR + 0.08, BH), spandrelMat);
+    band.position.set(0, y + fh + BH/2, 0);
+    band.castShadow = true; scene.add(band);
   }
 
-  // Floor number label
+  // Etiqueta número de piso (lado derecho)
   const sprite = new THREE.Sprite(makeLabel(f.id, f.p, f.yellow));
   sprite.scale.set(0.58, 0.29, 1);
-  sprite.position.set(BW / 2 + 0.46, y + FH / 2, 0);
+  sprite.position.set(BW/2 + 0.46, y + fh/2, 0);
   scene.add(sprite);
 });
 
@@ -306,15 +346,36 @@ for (let m = 0; m <= 5; m++) {
   }
 }
 
-// ── Pretil de techo (parapet) ─────────────────────────────────
-// Reborde perimetral oscuro que corona el edificio
-const roofY = TOTAL_H; // Y donde termina el último piso
-const parapet = new THREE.Mesh(
-  new THREE.BoxGeometry(BW + 0.12, 0.14, BD + 0.12), // ligeramente más ancho que el edificio
-  new THREE.MeshStandardMaterial({ color: 0x0a0f1c, roughness: 0.6, metalness: 0.85 })
-);
-parapet.position.set(0, roofY + 0.07, 0);
-scene.add(parapet);
+// ── Cierre perimetral sobre piso 25 ──────────────────────────
+// Losa de cierre y pretil que corona la sección 22-25 (trapecio
+// base mayor DERECHA). Sigue la misma planta trapezoidal del último piso.
+const roofY = TOTAL_H;
+const roofMat = new THREE.MeshStandardMaterial({ color: 0x0a0f1c, roughness: 0.6, metalness: 0.85 });
+const BD_minor = BD - TRAP_TAPER; // profundidad base menor
+
+// Losa horizontal de cierre (tapa del edificio)
+const cierreGeo = makeFloorGeo(BD_minor + 0.12, BD + 0.12, 0.16);
+const cierre = new THREE.Mesh(cierreGeo, roofMat);
+cierre.position.set(0, roofY + 0.08, 0);
+scene.add(cierre);
+
+// Pretil izquierdo (lado base menor pisos 22-25)
+const pretilL = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.28, BD_minor + 0.12), roofMat);
+pretilL.position.set(-BW/2, roofY + 0.14, 0);
+scene.add(pretilL);
+
+// Pretil derecho (lado base mayor pisos 22-25)
+const pretilR = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.28, BD + 0.12), roofMat);
+pretilR.position.set(BW/2, roofY + 0.14, 0);
+scene.add(pretilR);
+
+// Pretil frontal y trasero (lados oblicuos) — aproximados como cajas
+const pretilF = new THREE.Mesh(new THREE.BoxGeometry(BW + 0.12, 0.28, 0.10), roofMat);
+pretilF.position.set(0, roofY + 0.14, (BD + BD_minor)/4);
+scene.add(pretilF);
+const pretilB = new THREE.Mesh(new THREE.BoxGeometry(BW + 0.12, 0.28, 0.10), roofMat);
+pretilB.position.set(0, roofY + 0.14, -(BD + BD_minor)/4);
+scene.add(pretilB);
 
 // ── Helipuerto (techo) ────────────────────────────────────────
 const helY = roofY + 0.21; // altura base del helipuerto sobre el pretil
@@ -359,7 +420,7 @@ scene.add(helDisc);
 // Panel físico que sobresale de la fachada con el logo PDI
 const signW = 1.2, signH = 0.52, signD = 0.14; // ancho, alto, profundidad del letrero
 const signX = BW / 2 - signW / 2 - 0.06;       // alineado a la derecha del edificio
-const signY = 26 * STEP + FH / 2;               // centrado en el piso 25 (índice 26)
+const signY = floorY[26] + getFH(26) / 2;        // centrado en el piso 25 (índice 26)
 const signZ = BD / 2 + signD / 2 + 0.015;       // sobresale de la fachada frontal
 
 // Caja de respaldo del letrero (color azul PDI)
@@ -429,6 +490,29 @@ const periY = GROUND_Y - periH / 2;
   s.position.set(x, periY, z);
   s.receiveShadow = true;
   scene.add(s);
+});
+
+// ── Bigas cuadradas en esquinas de la base menor ──────────────
+// Sección pisos 1-5: base menor en lado DERECHO (x=+BW/2)
+// Las bigas van en los dos ángulos del lado corto: frontal y trasero
+const bigaMat = new THREE.MeshStandardMaterial({ color: 0x070d18, roughness: 0.75, metalness: 0.5 });
+const bigaSize = 0.30;  // sección cuadrada de la biga
+
+const botSecH = (floorY[6] + getFH(6)) - floorY[2];
+const botSecY = floorY[2] + botSecH / 2;
+[+BD_minor/2, -BD_minor/2].forEach(cz => {
+  const b = new THREE.Mesh(new THREE.BoxGeometry(bigaSize, botSecH, bigaSize), bigaMat);
+  b.position.set(+BW/2, botSecY, cz);
+  b.castShadow = true; scene.add(b);
+});
+
+// Sección pisos 22-25: base menor en lado IZQUIERDO (x=-BW/2)
+const topSecH = (floorY[26] + getFH(26)) - floorY[23];
+const topSecY = floorY[23] + topSecH / 2;
+[+BD_minor/2, -BD_minor/2].forEach(cz => {
+  const b = new THREE.Mesh(new THREE.BoxGeometry(bigaSize, topSecH, bigaSize), bigaMat);
+  b.position.set(-BW/2, topSecY, cz);
+  b.castShadow = true; scene.add(b);
 });
 
 // ── Camera & controls ─────────────────────────────────────────
