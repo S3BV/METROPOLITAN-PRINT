@@ -369,7 +369,7 @@ for (let m = 0; m <= 13; m++) {
 
 // 6 montantes en caras laterales — solo se colocan dentro del ancho de
 // cada cara en cada zona (las trapezoidales son más cortas en un lado).
-const sideZs = Array.from({ length: 27 }, (_, m) => -BD/2 + m * (BD/26)); // 26 ventanas base mayor, 10 base menor
+const sideZs = Array.from({ length: 15 }, (_, m) => -BD/2 + m * (BD/14)); // 14 ventanas base mayor, ~4 base menor (ventanas cuadradas)
 mullZones.forEach(({ y0, y1, zone }) => {
   const h   = y1 - y0;
   const dL  = zone === 'high' ? BD - TRAP_TAPER : BD; // profundidad cara izquierda
