@@ -296,13 +296,10 @@ function showDetail(floor: Floor | null): void {
       <td>${p.area}</td>
       <td><span style="font-size:11px;padding:2px 7px;border-radius:4px;background:#ffffff0a;color:#7a8898">${p.tipo === 'P2P' ? 'P2P' : 'Servidor'}</span></td>
       <td>
-        <div style="display:flex;align-items:center;gap:5px">
-          <button onclick="window._openEstadoMenu(event,${pi},'${floor.id}')"
-            style="display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:99px;font-size:10px;font-weight:700;color:${pe.color};background:${pe.bg};border:1px solid ${pe.color}33;cursor:pointer">
-            <span style="width:5px;height:5px;border-radius:50%;background:${pe.color};display:inline-block;flex-shrink:0"></span>${p.estado}<span style="font-size:8px;margin-left:1px;opacity:.5">▾</span>
-          </button>
-          ${p.estado === 'En configuración' ? `<button onclick="window._openChecklist(event,${pi},'${floor.id}')" style="width:19px;height:19px;border-radius:4px;background:rgba(249,115,22,.12);border:1px solid rgba(249,115,22,.25);color:#f97316;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0" title="Checklist de configuración">⚙</button>` : ''}
-        </div>
+        <button onclick="${p.estado === 'En configuración' ? `window._openChecklist(event,${pi},'${floor.id}')` : `window._openEstadoMenu(event,${pi},'${floor.id}')`}"
+          style="display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:99px;font-size:10px;font-weight:700;color:${pe.color};background:${pe.bg};border:1px solid ${pe.color}33;cursor:pointer">
+          <span style="width:5px;height:5px;border-radius:50%;background:${pe.color};display:inline-block;flex-shrink:0"></span>${p.estado}<span style="font-size:8px;margin-left:1px;opacity:.5">${p.estado === 'En configuración' ? '⚙' : '▾'}</span>
+        </button>
       </td>
       <td style="white-space:nowrap">
         <button class="act-btn" onclick="window._openModal('${floor.id}',${pi})">✎</button>
