@@ -33,14 +33,13 @@ const FLOORS: Floor[] = [
 ];
 
 const PESTADOS: Record<string, PEstado> = {
-  'En planificación': { color:'#6b7280', bg:'rgba(107,114,128,.14)' },
   'En instalación':   { color:'#3b82f6', bg:'rgba(59,130,246,.14)'  },
   'En configuración': { color:'#f97316', bg:'rgba(249,115,22,.14)'  },
   'Operativa':        { color:'#22c55e', bg:'rgba(34,197,94,.14)'   },
 };
 const PESTADO_LIST = Object.keys(PESTADOS);
 const ESTADO_PESO: Record<string, number> = {
-  'En planificación':0, 'En instalación':33, 'En configuración':66, 'Operativa':100,
+  'En instalación':33, 'En configuración':66, 'Operativa':100,
 };
 
 const CONFIG_CHECKS: { key: string; label: string; servidorOnly?: boolean }[] = [
@@ -325,7 +324,7 @@ window._openModal = function(piso: string, idx: number) {
   _editIdx = idx;
   const isEdit = idx >= 0;
   const p: Partial<Printer> & { hh:string; ip:string; marca:string; modelo:string; area:string; tipo:string; estado:string; piso:string; serie:string|null } =
-    isEdit ? PRINTERS[idx] : { hh:'', serie:null, marca:'', modelo:'', ip:'', piso, area:'', tipo:'P2P', estado:'En planificación' };
+    isEdit ? PRINTERS[idx] : { hh:'', serie:null, marca:'', modelo:'', ip:'', piso, area:'', tipo:'P2P', estado:'En instalación' };
 
   document.getElementById('modal-title')!.textContent = isEdit ? 'Editar impresora' : 'Agregar impresora';
   document.getElementById('modal-form')!.innerHTML = `
