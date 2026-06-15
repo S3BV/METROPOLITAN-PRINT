@@ -15,6 +15,7 @@ export interface Printer {
   area: string;
   tipo: string;
   estado: string;
+  checklist?: Record<string, boolean>;
   created_at?: string;
 }
 

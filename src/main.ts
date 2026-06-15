@@ -12,6 +12,8 @@ declare global {
     _closeModal(): void;
     _saveModal(): Promise<void>;
     _deleteP(idx: number, _floorId?: string): Promise<void>;
+    _renderConfigChecklist(): void;
+    _toggleCheck(idx: number, key: string, floorId: string): Promise<void>;
   }
 }
 
@@ -41,11 +43,22 @@ const ESTADO_PESO: Record<string, number> = {
   'En planificación':0, 'En instalación':33, 'En configuración':66, 'Operativa':100,
 };
 
+const CONFIG_CHECKS: { key: string; label: string; servidorOnly?: boolean }[] = [
+  { key: 'dns',      label: 'DNS' },
+  { key: 'smtp',     label: 'SMTP' },
+  { key: 'copia',    label: 'Configuración de copia' },
+  { key: 'escaner',  label: 'Configuración de Escaner' },
+  { key: 'libreta',  label: 'Carga de libreta de direcciones' },
+  { key: 'papercut', label: 'Integración a Paper Cut', servidorOnly: true },
+  { key: 'bandejas', label: 'Config de bandejas' },
+];
+
 let PRINTERS: Printer[] = await loadPrinters();
 
 // ── Interaction state ─────────────────────────────────────────
 let hovIdx = -1, selIdx = -1;
 let _editIdx = -1;
+let _modalChecklist: Record<string, boolean> = {};
 
 // ── Scene ─────────────────────────────────────────────────────
 const wrap = document.getElementById('three-wrap')!;
@@ -219,6 +232,32 @@ function showDetail(floor: Floor | null): void {
   const c = floorColor(effP), st = floorStatus(effP);
   const printers = PRINTERS.filter(p => p.piso === floor.id);
 
+  const configPrinters = printers
+    .map(p => ({ p, pi: PRINTERS.indexOf(p) }))
+    .filter(({ p }) => p.estado === 'En configuración');
+
+  const configChecklistCards = configPrinters.map(({ p, pi }) =>
+    `<div class="d-card" style="padding:12px 14px">
+      <div style="font-size:11px;font-weight:700;color:#c0cad4;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+        <span style="color:#f97316">&#9881;</span>
+        ${p.hh} &mdash; ${p.marca} ${p.modelo}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${CONFIG_CHECKS
+          .filter(ck => !ck.servidorOnly || p.tipo === 'Servidor')
+          .map(ck => {
+            const checked = p.checklist?.[ck.key] ?? false;
+            return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none">
+              <input type="checkbox" ${checked ? 'checked' : ''}
+                onchange="window._toggleCheck(${pi},'${ck.key}','${floor.id}')"
+                style="width:13px;height:13px;accent-color:#f97316;cursor:pointer;flex-shrink:0">
+              <span style="font-size:12px;color:${checked ? '#c0cad4' : '#545e6a'}">${ck.label}</span>
+            </label>`;
+          }).join('')}
+      </div>
+    </div>`
+  ).join('');
+
   const printerRows = printers.map(p => {
     const pi = PRINTERS.indexOf(p);
     const pe = PESTADOS[p.estado] ?? PESTADOS['Planificada'];
@@ -271,7 +310,14 @@ function showDetail(floor: Floor | null): void {
           </tr></thead>
           <tbody>${printerRows}</tbody>
         </table></div>`
-    }`;
+    }
+    ${configPrinters.length > 0 ? `
+    <div style="margin-top:20px">
+      <div class="d-tag" style="margin-bottom:10px">Checklist de configuración</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
+        ${configChecklistCards}
+      </div>
+    </div>` : ''}`;
 }
 
 // ── Modal ─────────────────────────────────────────────────────
@@ -303,20 +349,26 @@ window._openModal = function(piso: string, idx: number) {
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Tipo de conexión</label>
-        <select id="fi-tipo" class="form-input">
+        <select id="fi-tipo" class="form-input" onchange="window._renderConfigChecklist()">
           <option value="P2P"${p.tipo==='P2P'?' selected':''}>Punto a punto (P2P)</option>
           <option value="Servidor"${p.tipo==='Servidor'?' selected':''}>Servidor de impresión</option>
         </select></div>
       <div class="form-group"><label class="form-label">Estado</label>
-        <select id="fi-estado" class="form-input">
+        <select id="fi-estado" class="form-input" onchange="window._renderConfigChecklist()">
           ${PESTADO_LIST.map(e => `<option value="${e}"${p.estado===e?' selected':''}>${e}</option>`).join('')}
         </select></div>
     </div>
     <div class="form-group"><label class="form-label">Piso</label>
       <select id="fi-piso" class="form-input">
         ${FLOORS.map(f => `<option value="${f.id}"${(isEdit?p.piso:piso)===f.id?' selected':''}>Piso ${f.id}</option>`).join('')}
-      </select></div>`;
+      </select></div>
+    <div id="fi-config-section" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid #1e2530">
+      <div style="color:#6b7280;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">Checklist de configuración</div>
+      <div id="fi-config-checks" style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px"></div>
+    </div>`;
+  _modalChecklist = isEdit ? { ...(PRINTERS[idx].checklist ?? {}) } : {};
   document.getElementById('modal')!.classList.remove('hidden');
+  window._renderConfigChecklist();
 };
 
 window._closeModal = function() {
@@ -327,9 +379,17 @@ window._saveModal = async function() {
   const g = (id: string) => (document.getElementById(id) as HTMLInputElement).value.trim();
   const hh = g('fi-hh'), ip = g('fi-ip');
   if (!hh || !ip) { alert('Identificador HH e IP son obligatorios.'); return; }
+  const estadoVal = (document.getElementById('fi-estado') as HTMLSelectElement).value;
+  const checklist: Record<string, boolean> = _editIdx >= 0 ? { ...(PRINTERS[_editIdx].checklist ?? {}) } : {};
+  if (estadoVal === 'En configuración') {
+    CONFIG_CHECKS.forEach(c => {
+      const el = document.getElementById('fc-' + c.key) as HTMLInputElement | null;
+      if (el) checklist[c.key] = el.checked;
+    });
+  }
   const entry = {
     hh, serie: g('fi-serie') || null, marca: g('fi-marca'), modelo: g('fi-modelo'),
-    ip, piso: g('fi-piso'), area: g('fi-area'), tipo: g('fi-tipo'), estado: g('fi-estado'),
+    ip, piso: g('fi-piso'), area: g('fi-area'), tipo: g('fi-tipo'), estado: estadoVal, checklist,
   };
 
   if (_editIdx >= 0) {
@@ -344,6 +404,46 @@ window._saveModal = async function() {
   window._closeModal();
   refresh3DFloor(entry.piso);
   if (selIdx >= 0) showDetail(FLOORS[selIdx]);
+};
+
+window._renderConfigChecklist = function() {
+  const estadoEl = document.getElementById('fi-estado') as HTMLSelectElement | null;
+  const tipoEl   = document.getElementById('fi-tipo')   as HTMLSelectElement | null;
+  const section  = document.getElementById('fi-config-section');
+  const checks   = document.getElementById('fi-config-checks');
+  if (!section || !checks || !estadoEl || !tipoEl) return;
+
+  CONFIG_CHECKS.forEach(c => {
+    const el = document.getElementById('fc-' + c.key) as HTMLInputElement | null;
+    if (el) _modalChecklist[c.key] = el.checked;
+  });
+
+  if (estadoEl.value !== 'En configuración') {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+  const tipo = tipoEl.value;
+  checks.innerHTML = CONFIG_CHECKS
+    .filter(c => !c.servidorOnly || tipo === 'Servidor')
+    .map(c => {
+      const checked = _modalChecklist[c.key] ?? false;
+      return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;padding:3px 0">
+        <input type="checkbox" id="fc-${c.key}" ${checked ? 'checked' : ''}
+          style="width:13px;height:13px;accent-color:#f97316;cursor:pointer;flex-shrink:0">
+        <span style="font-size:12px;color:#c0cad4">${c.label}</span>
+      </label>`;
+    }).join('');
+};
+
+window._toggleCheck = async function(idx: number, key: string, floorId: string) {
+  const printer = PRINTERS[idx];
+  const checklist = { ...(printer.checklist ?? {}), [key]: !(printer.checklist?.[key] ?? false) };
+  const { error } = await db.from('impresoras').update({ checklist }).eq('id', printer.id!);
+  if (error) { alert('Error al guardar: ' + error.message); return; }
+  PRINTERS[idx] = { ...printer, checklist };
+  if (selIdx >= 0) showDetail(FLOORS[selIdx]);
+  void floorId;
 };
 
 window._deleteP = async function(idx: number) {
