@@ -112,7 +112,7 @@ controls.maxPolarAngle = Math.PI / 2 - 0.02;
 controls.minDistance = 5;
 controls.maxDistance = 45;
 controls.autoRotate = true;
-controls.autoRotateSpeed = 0.5;
+controls.autoRotateSpeed = -0.8;
 controls.update();
 
 const _initCamPos = new THREE.Vector3(-6, midY + 2.5, 22);
