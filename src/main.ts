@@ -15,6 +15,10 @@ declare global {
     _renderConfigChecklist(): void;
     _toggleCheck(idx: number, key: string, floorId: string): Promise<void>;
     _selectFloor(floorId: string): void;
+    _changeEstado(idx: number, newEstado: string, floorId: string): Promise<void>;
+    _openEstadoMenu(event: MouseEvent, idx: number, floorId: string): void;
+    _openChecklist(event: MouseEvent, idx: number, floorId: string): void;
+    _closeMenus(): void;
   }
 }
 
@@ -291,9 +295,15 @@ function showDetail(floor: Floor | null): void {
       <td><a href="http://${p.ip}" target="_blank" class="font-mono" style="font-size:11px;color:#00d4ff;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${p.ip}</a></td>
       <td>${p.area}</td>
       <td><span style="font-size:11px;padding:2px 7px;border-radius:4px;background:#ffffff0a;color:#7a8898">${p.tipo === 'P2P' ? 'P2P' : 'Servidor'}</span></td>
-      <td><span style="display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:99px;font-size:10px;font-weight:700;color:${pe.color};background:${pe.bg};border:1px solid ${pe.color}33">
-        <span style="width:5px;height:5px;border-radius:50%;background:${pe.color};display:inline-block;flex-shrink:0"></span>${p.estado}
-      </span></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:5px">
+          <button onclick="window._openEstadoMenu(event,${pi},'${floor.id}')"
+            style="display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:99px;font-size:10px;font-weight:700;color:${pe.color};background:${pe.bg};border:1px solid ${pe.color}33;cursor:pointer">
+            <span style="width:5px;height:5px;border-radius:50%;background:${pe.color};display:inline-block;flex-shrink:0"></span>${p.estado}<span style="font-size:8px;margin-left:1px;opacity:.5">▾</span>
+          </button>
+          ${p.estado === 'En configuración' ? `<button onclick="window._openChecklist(event,${pi},'${floor.id}')" style="width:19px;height:19px;border-radius:4px;background:rgba(249,115,22,.12);border:1px solid rgba(249,115,22,.25);color:#f97316;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0" title="Checklist de configuración">⚙</button>` : ''}
+        </div>
+      </td>
       <td style="white-space:nowrap">
         <button class="act-btn" onclick="window._openModal('${floor.id}',${pi})">✎</button>
         <button class="act-btn danger" onclick="window._deleteP(${pi},'${floor.id}')">×</button>
@@ -422,6 +432,106 @@ window._saveModal = async function() {
   window._closeModal();
   refresh3DFloor(entry.piso);
   if (selIdx >= 0) showDetail(FLOORS[selIdx]);
+};
+
+window._closeMenus = function() {
+  document.getElementById('estado-menu')?.remove();
+  document.getElementById('cl-popup')?.remove();
+};
+
+window._changeEstado = async function(idx: number, newEstado: string, floorId: string) {
+  const printer = PRINTERS[idx];
+  if (printer.estado === newEstado) return;
+  const { error } = await db.from('impresoras').update({ estado: newEstado }).eq('id', printer.id!);
+  if (error) { alert('Error al guardar: ' + error.message); return; }
+  PRINTERS[idx] = { ...printer, estado: newEstado };
+  refresh3DFloor(floorId);
+  if (selIdx >= 0) showDetail(FLOORS[selIdx]);
+};
+
+window._openEstadoMenu = function(event: MouseEvent, idx: number, floorId: string) {
+  event.stopPropagation();
+  window._closeMenus();
+  const btn  = event.currentTarget as HTMLElement;
+  const rect = btn.getBoundingClientRect();
+  const menu = document.createElement('div');
+  menu.id = 'estado-menu';
+  menu.style.cssText = `position:fixed;z-index:1000;top:${rect.bottom + 4}px;left:${rect.left}px;
+    background:#1a1f2e;border:1px solid #2a3040;border-radius:8px;padding:4px;
+    display:flex;flex-direction:column;gap:1px;box-shadow:0 8px 24px rgba(0,0,0,.6);min-width:165px`;
+  PESTADO_LIST.forEach(e => {
+    const pe = PESTADOS[e];
+    const isActive = PRINTERS[idx].estado === e;
+    const opt = document.createElement('button');
+    opt.style.cssText = `display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:5px;
+      font-size:11px;font-weight:600;color:${pe.color};background:${isActive ? pe.bg : 'transparent'};
+      border:none;cursor:pointer;white-space:nowrap;width:100%;text-align:left`;
+    opt.innerHTML = `<span style="width:6px;height:6px;border-radius:50%;background:${pe.color};flex-shrink:0"></span>${e}`;
+    opt.onmouseover = () => { opt.style.background = pe.bg; };
+    opt.onmouseout  = () => { opt.style.background = isActive ? pe.bg : 'transparent'; };
+    opt.onclick = () => { window._changeEstado(idx, e, floorId); window._closeMenus(); };
+    menu.appendChild(opt);
+  });
+  document.body.appendChild(menu);
+  const onOutside = (e: MouseEvent) => {
+    if (!menu.contains(e.target as Node)) { window._closeMenus(); document.removeEventListener('click', onOutside); }
+  };
+  setTimeout(() => document.addEventListener('click', onOutside), 0);
+};
+
+window._openChecklist = function(event: MouseEvent, idx: number, floorId: string) {
+  event.stopPropagation();
+  window._closeMenus();
+  const printer = PRINTERS[idx];
+  const btn     = event.currentTarget as HTMLElement;
+  const rect    = btn.getBoundingClientRect();
+  const checks  = CONFIG_CHECKS.filter(c => !c.servidorOnly || printer.tipo === 'Servidor');
+  const left    = Math.min(rect.left, window.innerWidth - 248);
+
+  const popup = document.createElement('div');
+  popup.id = 'cl-popup';
+  popup.style.cssText = `position:fixed;z-index:1001;top:${rect.bottom + 6}px;left:${left}px;
+    background:#1a1f2e;border:1px solid #2a3040;border-radius:10px;padding:12px 14px;
+    min-width:224px;box-shadow:0 8px 32px rgba(0,0,0,.6)`;
+
+  const cl0 = printer.checklist ?? {};
+  popup.innerHTML = `
+    <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6b7280;margin-bottom:10px">
+      Checklist &middot; ${printer.hh}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+      ${checks.map(c => {
+        const checked = cl0[c.key] ?? false;
+        return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none">
+          <input type="checkbox" data-key="${c.key}" ${checked ? 'checked' : ''}
+            style="width:13px;height:13px;accent-color:#f97316;cursor:pointer;flex-shrink:0">
+          <span style="font-size:12px;color:${checked ? '#c0cad4' : '#545e6a'}">${c.label}</span>
+        </label>`;
+      }).join('')}
+    </div>`;
+
+  document.body.appendChild(popup);
+
+  popup.querySelectorAll<HTMLInputElement>('input[type=checkbox]').forEach(input => {
+    input.addEventListener('change', async () => {
+      const key = input.dataset['key']!;
+      const cl  = { ...(PRINTERS[idx].checklist ?? {}), [key]: input.checked };
+      const { error } = await db.from('impresoras').update({ checklist: cl }).eq('id', PRINTERS[idx].id!);
+      if (error) { alert('Error: ' + error.message); input.checked = !input.checked; return; }
+      PRINTERS[idx] = { ...PRINTERS[idx], checklist: cl };
+      const span = input.nextElementSibling as HTMLElement;
+      if (span) span.style.color = input.checked ? '#c0cad4' : '#545e6a';
+      if (checks.every(c => cl[c.key] === true)) {
+        window._closeMenus();
+        await window._changeEstado(idx, 'Operativa', floorId);
+      }
+    });
+  });
+
+  const onOutside = (e: MouseEvent) => {
+    if (!popup.contains(e.target as Node)) { window._closeMenus(); document.removeEventListener('click', onOutside); }
+  };
+  setTimeout(() => document.addEventListener('click', onOutside), 0);
 };
 
 window._selectFloor = function(floorId: string) {
