@@ -173,9 +173,9 @@ export function createBuilding(scene: THREE.Scene, floors: Floor[]): BuildingRes
 
   // ── Helipuerto elevado ────────────────────────────────────────
   const tapaTop  = roofY + 0.50;
-  const helPlatW = 2.8, helPlatD = 2.8;
+  const helPlatW = 2.2, helPlatD = 2.2;
   const helPlatT = 0.10;
-  const helBaseH = 0.42;                   // altura del pedestal rectangular
+  const helBaseH = 0.32;                   // altura del pedestal rectangular
   const helPlatY = tapaTop + helBaseH + helPlatT / 2;
   const helSurfY = helPlatY + helPlatT / 2;
 
@@ -195,7 +195,7 @@ export function createBuilding(scene: THREE.Scene, floors: Floor[]): BuildingRes
   scene.add(helPed);
 
   // Cierre perimetral acostado/horizontal (reja transitable)
-  const grateW  = 0.24;   // ancho de la reja más allá del borde de la plataforma
+  const grateW  = 0.18;   // ancho de la reja más allá del borde de la plataforma
   const grateT  = 0.035;  // espesor de la reja
   const grateY  = helSurfY + grateT / 2;
   const hw = helPlatW / 2, hd = helPlatD / 2;
@@ -240,7 +240,7 @@ export function createBuilding(scene: THREE.Scene, floors: Floor[]): BuildingRes
   hctx.fillText('H', 256, 272);
 
   const helDisc = new THREE.Mesh(
-    new THREE.CircleGeometry(1.12, 48),
+    new THREE.CircleGeometry(0.88, 48),
     new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(hcv), transparent: true }),
   );
   helDisc.rotation.x = -Math.PI / 2;
