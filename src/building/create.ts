@@ -171,6 +171,22 @@ export function createBuilding(scene: THREE.Scene, floors: Floor[]): BuildingRes
   tapa.castShadow = true;
   scene.add(tapa);
 
+  // ── Cierre perimetral del techo ───────────────────────────────
+  const parapetH = 0.10, parapetT = 0.05;
+  const parapetY = roofY + 0.50 + parapetH / 2;
+  const rW = BW + 0.08, rD = BD + 0.08;
+  ([
+    { w: rW + parapetT * 2, d: parapetT, x: 0,      z:  rD / 2 },
+    { w: rW + parapetT * 2, d: parapetT, x: 0,      z: -rD / 2 },
+    { w: parapetT,          d: rD,       x:  rW / 2, z: 0 },
+    { w: parapetT,          d: rD,       x: -rW / 2, z: 0 },
+  ] as { w:number; d:number; x:number; z:number }[]).forEach(({ w, d, x, z }) => {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(w, parapetH, d), tapaMat);
+    p.position.set(x, parapetY, z);
+    p.castShadow = true;
+    scene.add(p);
+  });
+
   // ── Helipuerto elevado ────────────────────────────────────────
   const tapaTop  = roofY + 0.50;
   const helPlatW = 2.2, helPlatD = 2.2;
