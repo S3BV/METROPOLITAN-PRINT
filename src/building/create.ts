@@ -224,11 +224,11 @@ export function createBuilding(scene: THREE.Scene, floors: Floor[]): BuildingRes
     const d = 8;
     for (let i = d; i >= 0; i--) {
       const t = 1 - i / d;
-      ctx2.fillStyle = `rgb(${Math.round(70 + t * 185)},${Math.round(40 + t * 155)},0)`;
+      ctx2.fillStyle = `rgb(${Math.round(3 + t * 13)},${Math.round(8 + t * 35)},${Math.round(20 + t * 87)})`;
       ctx2.fillText('PDI', W / 2 + i, H / 2 + i);
     }
     ctx2.globalAlpha = 0.22;
-    ctx2.fillStyle = '#FFF8C0';
+    ctx2.fillStyle = '#7799CC';
     ctx2.fillText('PDI', W / 2 - 2, H / 2 - 3);
     ctx2.globalAlpha = 1;
     return new THREE.CanvasTexture(cv2);
