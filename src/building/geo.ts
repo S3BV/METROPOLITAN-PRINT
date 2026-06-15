@@ -24,13 +24,19 @@ export function getFloorDepths(i: number): { dL: number; dR: number } {
 
 export function makeFloorGeo(dL: number, dR: number, fh: number): THREE.BufferGeometry {
   if (Math.abs(dL - dR) < 0.001) return new THREE.BoxGeometry(BW, fh, dL);
-  const maxD = Math.max(dL, dR); // cara trasera rectangular: siempre la profundidad máxima
   const cv = OBLIQUE_CURVE;
   const s  = new THREE.Shape();
   s.moveTo(-BW/2, -dL/2);
-  s.quadraticCurveTo(0, -(dL+dR)/4 + cv, +BW/2, -dR/2); // cara frontal oblicua (sin cambios)
-  s.lineTo(+BW/2, +maxD/2);  // lado derecho se extiende hasta la profundidad máxima
-  s.lineTo(-BW/2, +maxD/2);  // cara trasera recta
+  s.quadraticCurveTo(0, -(dL+dR)/4 + cv, +BW/2, -dR/2); // cara frontal oblicua
+  if (dL > dR) {
+    // Zona baja (pisos 1-5): cara trasera rectangular a la profundidad máxima
+    s.lineTo(+BW/2, +dL/2);
+    s.lineTo(-BW/2, +dL/2);
+  } else {
+    // Zona alta (pisos 22-25): cara trasera oblicua (comportamiento original)
+    s.lineTo(+BW/2, +dR/2);
+    s.quadraticCurveTo(0, (dL+dR)/4 - cv, -BW/2, +dL/2);
+  }
   s.closePath();
   const geo = new THREE.ExtrudeGeometry(s, { depth: fh, bevelEnabled: false, curveSegments: 16 });
   geo.applyMatrix4(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
