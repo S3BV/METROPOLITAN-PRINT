@@ -231,32 +231,6 @@ function showDetail(floor: Floor | null): void {
   const c = floorColor(effP), st = floorStatus(effP);
   const printers = PRINTERS.filter(p => p.piso === floor.id);
 
-  const configPrinters = printers
-    .map(p => ({ p, pi: PRINTERS.indexOf(p) }))
-    .filter(({ p }) => p.estado === 'En configuración');
-
-  const configChecklistCards = configPrinters.map(({ p, pi }) =>
-    `<div class="d-card" style="padding:12px 14px">
-      <div style="font-size:11px;font-weight:700;color:#c0cad4;margin-bottom:10px;display:flex;align-items:center;gap:6px">
-        <span style="color:#f97316">&#9881;</span>
-        ${p.hh} &mdash; ${p.marca} ${p.modelo}
-      </div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        ${CONFIG_CHECKS
-          .filter(ck => !ck.servidorOnly || p.tipo === 'Servidor')
-          .map(ck => {
-            const checked = p.checklist?.[ck.key] ?? false;
-            return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none">
-              <input type="checkbox" ${checked ? 'checked' : ''}
-                onchange="window._toggleCheck(${pi},'${ck.key}','${floor.id}')"
-                style="width:13px;height:13px;accent-color:#f97316;cursor:pointer;flex-shrink:0">
-              <span style="font-size:12px;color:${checked ? '#c0cad4' : '#545e6a'}">${ck.label}</span>
-            </label>`;
-          }).join('')}
-      </div>
-    </div>`
-  ).join('');
-
   const printerRows = printers.map(p => {
     const pi = PRINTERS.indexOf(p);
     const pe = PESTADOS[p.estado] ?? PESTADOS['Planificada'];
@@ -309,14 +283,7 @@ function showDetail(floor: Floor | null): void {
           </tr></thead>
           <tbody>${printerRows}</tbody>
         </table></div>`
-    }
-    ${configPrinters.length > 0 ? `
-    <div style="margin-top:20px">
-      <div class="d-tag" style="margin-bottom:10px">Checklist de configuración</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
-        ${configChecklistCards}
-      </div>
-    </div>` : ''}`;
+    }`;
 }
 
 // ── Modal ─────────────────────────────────────────────────────
