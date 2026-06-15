@@ -130,8 +130,11 @@ export function createBuilding(scene: THREE.Scene, floors: Floor[]): BuildingRes
         // Zonas oblicuas: cara frontal y trasera son diagonales
         const zL = (zone === 'low' ? BD/2 : (BD - TRAP_TAPER)/2) + 0.02;
         const zR = (zone === 'low' ? (BD - TRAP_TAPER)/2 : BD/2) + 0.02;
-        scene.add(new THREE.Mesh(diagGeo(y0, h,  zL,  zR, false), mat));  // frente
-        scene.add(new THREE.Mesh(diagGeo(y0, h, -zL, -zR, true),  mat));  // trasera
+        scene.add(new THREE.Mesh(diagGeo(y0, h, zL, zR, false), mat));  // frente (diagonal)
+        const backOvl = new THREE.Mesh(new THREE.PlaneGeometry(BW, h), mat);
+        backOvl.position.set(0, y0 + h / 2, -(BD / 2 + 0.02));
+        backOvl.rotation.y = Math.PI;
+        scene.add(backOvl);  // trasera (plana, cara rectangular)
       }
     });
   })();
@@ -334,11 +337,11 @@ export function createBuilding(scene: THREE.Scene, floors: Floor[]): BuildingRes
 
   const botSecH = floorY[7] - floorY[2];
   const botBigaX = BW/2 - bigaSize/2;
-  [+(BD/2 - bigaSize/2), -(BD/2 - bigaSize/2)].forEach(cz => {
+  {
     const b = new THREE.Mesh(new THREE.BoxGeometry(bigaSize, botSecH, bigaSize), bigaMat);
-    b.position.set(botBigaX, floorY[2] + botSecH / 2, cz);
+    b.position.set(botBigaX, floorY[2] + botSecH / 2, +(BD/2 - bigaSize/2));
     b.castShadow = true; scene.add(b);
-  });
+  }
 
   const topBigaY0 = floorY[23] - BH;
   const topSecH   = TOTAL_H - topBigaY0;
