@@ -31,15 +31,14 @@ const FLOORS: Floor[] = [
 ];
 
 const PESTADOS: Record<string, PEstado> = {
-  'Planificada':    { color:'#6b7280', bg:'rgba(107,114,128,.14)' },
-  'En instalación': { color:'#3b82f6', bg:'rgba(59,130,246,.14)'  },
-  'Instalada':      { color:'#f59e0b', bg:'rgba(245,158,11,.14)'  },
-  'Configurada':    { color:'#f97316', bg:'rgba(249,115,22,.14)'  },
-  'Operativa':      { color:'#22c55e', bg:'rgba(34,197,94,.14)'   },
+  'En planificación': { color:'#6b7280', bg:'rgba(107,114,128,.14)' },
+  'En instalación':   { color:'#3b82f6', bg:'rgba(59,130,246,.14)'  },
+  'En configuración': { color:'#f97316', bg:'rgba(249,115,22,.14)'  },
+  'Operativa':        { color:'#22c55e', bg:'rgba(34,197,94,.14)'   },
 };
 const PESTADO_LIST = Object.keys(PESTADOS);
 const ESTADO_PESO: Record<string, number> = {
-  'Planificada':0, 'En instalación':25, 'Instalada':50, 'Configurada':75, 'Operativa':100,
+  'En planificación':0, 'En instalación':33, 'En configuración':66, 'Operativa':100,
 };
 
 let PRINTERS: Printer[] = await loadPrinters();
@@ -280,7 +279,7 @@ window._openModal = function(piso: string, idx: number) {
   _editIdx = idx;
   const isEdit = idx >= 0;
   const p: Partial<Printer> & { hh:string; ip:string; marca:string; modelo:string; area:string; tipo:string; estado:string; piso:string; serie:string|null } =
-    isEdit ? PRINTERS[idx] : { hh:'', serie:null, marca:'', modelo:'', ip:'', piso, area:'', tipo:'P2P', estado:'Planificada' };
+    isEdit ? PRINTERS[idx] : { hh:'', serie:null, marca:'', modelo:'', ip:'', piso, area:'', tipo:'P2P', estado:'En planificación' };
 
   document.getElementById('modal-title')!.textContent = isEdit ? 'Editar impresora' : 'Agregar impresora';
   document.getElementById('modal-form')!.innerHTML = `
@@ -302,17 +301,24 @@ window._openModal = function(piso: string, idx: number) {
       <div class="form-group"><label class="form-label">Área / Departamento</label>
         <input id="fi-area" class="form-input" placeholder="Administración..." value="${p.area}"></div>
     </div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Tipo de conexión</label>
-        <select id="fi-tipo" class="form-input">
-          <option value="P2P"${p.tipo==='P2P'?' selected':''}>Punto a punto (P2P)</option>
-          <option value="Servidor"${p.tipo==='Servidor'?' selected':''}>Servidor de impresión</option>
-        </select></div>
-      <div class="form-group"><label class="form-label">Estado</label>
-        <select id="fi-estado" class="form-input">
-          ${PESTADO_LIST.map(e => `<option value="${e}"${p.estado===e?' selected':''}>${e}</option>`).join('')}
-        </select></div>
-    </div>
+    <div class="form-group" style="margin-bottom:12px"><label class="form-label">Tipo de conexión</label>
+      <select id="fi-tipo" class="form-input">
+        <option value="P2P"${p.tipo==='P2P'?' selected':''}>Punto a punto (P2P)</option>
+        <option value="Servidor"${p.tipo==='Servidor'?' selected':''}>Servidor de impresión</option>
+      </select></div>
+    <div class="form-group" style="margin-bottom:12px"><label class="form-label">Estado</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+        ${PESTADO_LIST.map(e => {
+          const pe = PESTADOS[e];
+          const sel = p.estado === e;
+          return `<label data-elbl style="display:flex;align-items:center;gap:9px;padding:9px 13px;border-radius:7px;border:1px solid ${sel ? pe.color+'55' : '#28293a'};background:${sel ? pe.bg : 'transparent'};cursor:pointer;transition:all .15s;user-select:none">
+            <input type="radio" name="fi-estado" value="${e}" data-color="${pe.color}" data-bg="${pe.bg}"${sel?' checked':''}
+              style="accent-color:${pe.color};width:15px;height:15px;flex-shrink:0;cursor:pointer"
+              onchange="document.querySelectorAll('[data-elbl]').forEach(lb=>{const r=lb.querySelector('input');lb.style.borderColor='#28293a';lb.style.background='transparent';lb.querySelector('span').style.color='#545e6a'});this.closest('[data-elbl]').style.borderColor=this.dataset.color+'55';this.closest('[data-elbl]').style.background=this.dataset.bg;this.closest('[data-elbl]').querySelector('span').style.color=this.dataset.color">
+            <span style="font-size:11px;font-weight:700;color:${sel ? pe.color : '#545e6a'};line-height:1.3">${e}</span>
+          </label>`;
+        }).join('')}
+      </div></div>
     <div class="form-group"><label class="form-label">Piso</label>
       <select id="fi-piso" class="form-input">
         ${FLOORS.map(f => `<option value="${f.id}"${(isEdit?p.piso:piso)===f.id?' selected':''}>Piso ${f.id}</option>`).join('')}
@@ -328,9 +334,10 @@ window._saveModal = async function() {
   const g = (id: string) => (document.getElementById(id) as HTMLInputElement).value.trim();
   const hh = g('fi-hh'), ip = g('fi-ip');
   if (!hh || !ip) { alert('Identificador HH e IP son obligatorios.'); return; }
+  const estado = (document.querySelector('input[name="fi-estado"]:checked') as HTMLInputElement | null)?.value ?? PESTADO_LIST[0];
   const entry = {
     hh, serie: g('fi-serie') || null, marca: g('fi-marca'), modelo: g('fi-modelo'),
-    ip, piso: g('fi-piso'), area: g('fi-area'), tipo: g('fi-tipo'), estado: g('fi-estado'),
+    ip, piso: g('fi-piso'), area: g('fi-area'), tipo: g('fi-tipo'), estado,
   };
 
   if (_editIdx >= 0) {
