@@ -172,7 +172,7 @@ export function createBuilding(scene: THREE.Scene, floors: Floor[]): BuildingRes
   scene.add(tapa);
 
   // ── Cierre perimetral del techo ───────────────────────────────
-  const parapetH = 0.10, parapetT = 0.05;
+  const parapetH = 0.20, parapetT = 0.05;
   const parapetY = roofY + 0.50 + parapetH / 2;
   const rW = BW + 0.08, rD = BD + 0.08;
   ([
