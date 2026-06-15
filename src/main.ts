@@ -14,6 +14,7 @@ declare global {
     _deleteP(idx: number, _floorId?: string): Promise<void>;
     _renderConfigChecklist(): void;
     _toggleCheck(idx: number, key: string, floorId: string): Promise<void>;
+    _selectFloor(floorId: string): void;
   }
 }
 
@@ -163,6 +164,7 @@ function refresh3DFloor(floorId: string): void {
 }
 
 FLOORS.forEach(f => refresh3DFloor(f.id));
+showDetail(null);
 
 // ── Interaction ───────────────────────────────────────────────
 const ray = new THREE.Raycaster();
@@ -220,8 +222,57 @@ function showDetail(floor: Floor | null): void {
   const ph  = document.getElementById('placeholder')!;
   const det = document.getElementById('detail')!;
   if (!floor) {
-    ph.classList.remove('opacity-0');
-    det.classList.add('opacity-0', 'pointer-events-none');
+    const activeFloors = FLOORS.filter(f => PRINTERS.some(p => p.piso === f.id));
+    if (!activeFloors.length) {
+      ph.classList.remove('opacity-0');
+      det.classList.add('opacity-0', 'pointer-events-none');
+      return;
+    }
+    ph.classList.add('opacity-0');
+    det.classList.remove('opacity-0', 'pointer-events-none');
+
+    const totalP       = activeFloors.reduce((s, f) => s + floorEffectiveP(f.id), 0);
+    const avgP         = Math.round(totalP / activeFloors.length);
+    const avgC         = floorColor(avgP);
+    const totalPrinters = PRINTERS.length;
+
+    const cards = activeFloors.map(f => {
+      const effP = floorEffectiveP(f.id);
+      const fc   = floorColor(effP);
+      const ps   = PRINTERS.filter(p => p.piso === f.id);
+      const badges = PESTADO_LIST
+        .map(e => ({ e, count: ps.filter(p => p.estado === e).length, pe: PESTADOS[e] }))
+        .filter(x => x.count > 0)
+        .map(({ e, count, pe }) =>
+          `<span style="font-size:10px;padding:1px 7px;border-radius:99px;color:${pe.color};background:${pe.bg};border:1px solid ${pe.color}33">${e} &middot; ${count}</span>`
+        ).join('');
+      return `<div class="d-card" style="padding:12px 14px;cursor:pointer"
+          onmouseover="this.style.borderColor='#2a3a4a'"
+          onmouseout="this.style.borderColor=''"
+          onclick="window._selectFloor('${f.id}')">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px">
+          <span style="font-size:13px;font-weight:700;color:#d8e0e8">Piso ${f.id}</span>
+          <span style="font-size:13px;font-weight:800;color:${fc}">${effP}%</span>
+        </div>
+        <div class="d-bar" style="height:3px;margin-bottom:8px">
+          <div class="d-fill" style="width:${effP}%;background:${fc}"></div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">${badges}</div>
+      </div>`;
+    }).join('');
+
+    det.innerHTML = `
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-[22px] font-bold text-[#d8e0e8]">Avance general</h2>
+          <div style="font-size:12px;color:#545e6a;margin-top:2px">${activeFloors.length} pisos &middot; ${totalPrinters} impresoras</div>
+        </div>
+        <span class="text-[22px] font-black" style="color:${avgC}">${avgP}%</span>
+      </div>
+      <div class="d-bar mb-6"><div class="d-fill" style="width:${avgP}%;background:${avgC};box-shadow:0 0 10px ${avgC}55"></div></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">
+        ${cards}
+      </div>`;
     return;
   }
   ph.classList.add('opacity-0');
@@ -370,6 +421,15 @@ window._saveModal = async function() {
   window._closeModal();
   refresh3DFloor(entry.piso);
   if (selIdx >= 0) showDetail(FLOORS[selIdx]);
+};
+
+window._selectFloor = function(floorId: string) {
+  const idx = FLOORS.findIndex(f => f.id === floorId);
+  if (idx < 0) return;
+  if (selIdx >= 0) setFloorState(selIdx, selIdx === hovIdx ? 'hov' : 'normal');
+  selIdx = idx;
+  setFloorState(selIdx, 'sel');
+  showDetail(FLOORS[selIdx]);
 };
 
 window._renderConfigChecklist = function() {
