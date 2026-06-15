@@ -152,7 +152,11 @@ export function createBuilding(scene: THREE.Scene, floors: Floor[]): BuildingRes
         ml.position.set(-(BW/2 + mOff), y0 + h/2, zm);
         scene.add(ml);
       }
-      if (Math.abs(zm) <= dR/2 + mOff) {
+      // Zona baja: cara derecha asimétrica — frente en (BD-TRAP)/2, trasera a profundidad plena
+    const rightInFace = zone === 'low'
+      ? zm >= -(BD/2 + mOff) && zm <= (BD - TRAP_TAPER)/2 + mOff
+      : Math.abs(zm) <= dR/2 + mOff;
+    if (rightInFace) {
         const ml = new THREE.Mesh(new THREE.BoxGeometry(0.05, h, 0.045), mullionMat);
         ml.position.set(+(BW/2 + mOff), y0 + h/2, zm);
         scene.add(ml);
