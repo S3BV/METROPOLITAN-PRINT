@@ -19,6 +19,7 @@ declare global {
     _openEstadoMenu(event: MouseEvent, idx: number, floorId: string): void;
     _openChecklist(event: MouseEvent, idx: number, floorId: string): void;
     _closeMenus(): void;
+    _resetCamera(): void;
   }
 }
 
@@ -110,7 +111,18 @@ controls.minPolarAngle = 0.15;
 controls.maxPolarAngle = Math.PI / 2 - 0.02;
 controls.minDistance = 5;
 controls.maxDistance = 45;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.5;
 controls.update();
+
+const _initCamPos = new THREE.Vector3(-6, midY + 2.5, 22);
+const _initTarget = new THREE.Vector3(0, midY, 0);
+window._resetCamera = function() {
+  controls.autoRotate = false;
+  camera.position.copy(_initCamPos);
+  controls.target.copy(_initTarget);
+  controls.update();
+};
 
 // ── Floor color logic ─────────────────────────────────────────
 function floorEffectiveP(floorId: string): number {
