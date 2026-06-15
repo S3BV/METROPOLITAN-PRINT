@@ -208,109 +208,54 @@ export function createBuilding(scene: THREE.Scene, floors: Floor[]): BuildingRes
   helDisc.position.set(0, helY + 0.115, 0);
   scene.add(helDisc);
 
-  // ── PDI Sign ─────────────────────────────────────────────────
-  const signW = 1.2, signH = 0.52, signD = 0.14;
-  const signX = -(BW / 2 - signW / 2 - 0.06);
+  // ── PDI Signs — letras 3D con relieve (sin caja) ─────────────
+  const signW = 1.2, signH = 0.52;
   const signY = roofY + 0.25;
-  const signZ = (BD + 0.08) / 2 + signD / 2 + 0.015;
 
-  const signBox = new THREE.Mesh(
-    new THREE.BoxGeometry(signW, signH, signD),
-    new THREE.MeshStandardMaterial({ color: 0x102B6B, roughness: 0.5, metalness: 0.85 }),
-  );
-  signBox.position.set(signX, signY, signZ);
-  scene.add(signBox);
+  function makePdiTex(): THREE.CanvasTexture {
+    const W = 600, H = 240;
+    const cv2 = document.createElement('canvas');
+    cv2.width = W; cv2.height = H;
+    const ctx2 = cv2.getContext('2d')!;
+    ctx2.clearRect(0, 0, W, H);
+    ctx2.font = 'bold 170px Georgia,serif';
+    ctx2.textAlign = 'center';
+    ctx2.textBaseline = 'middle';
+    const d = 8;
+    for (let i = d; i >= 0; i--) {
+      const t = 1 - i / d;
+      ctx2.fillStyle = `rgb(${Math.round(70 + t * 185)},${Math.round(40 + t * 155)},0)`;
+      ctx2.fillText('PDI', W / 2 + i, H / 2 + i);
+    }
+    ctx2.globalAlpha = 0.22;
+    ctx2.fillStyle = '#FFF8C0';
+    ctx2.fillText('PDI', W / 2 - 2, H / 2 - 3);
+    ctx2.globalAlpha = 1;
+    return new THREE.CanvasTexture(cv2);
+  }
 
-  const rimMat = new THREE.MeshStandardMaterial({ color: 0x2a2e38, roughness: 0.4, metalness: 0.95 });
-  ([
-    { w: signW, rh: 0.03,   x: 0,                    ry:  signH / 2 - 0.015 },
-    { w: signW, rh: 0.03,   x: 0,                    ry: -signH / 2 + 0.015 },
-    { w: 0.03,  rh: signH,  x: -signW / 2 + 0.015,   ry: 0 },
-    { w: 0.03,  rh: signH,  x:  signW / 2 - 0.015,   ry: 0 },
-  ]).forEach(({ w, rh, x, ry }) => {
-    const rim = new THREE.Mesh(new THREE.BoxGeometry(w, rh, signD + 0.01), rimMat);
-    rim.position.set(signX + x, signY + ry, signZ);
-    scene.add(rim);
+  const pdiPlaneMat = new THREE.MeshBasicMaterial({
+    map: makePdiTex(), transparent: true, side: THREE.DoubleSide, depthWrite: false,
   });
 
-  const pdiSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="220" viewBox="0 0 600 220">
-  <rect width="600" height="220" fill="#102B6B"/>
-  <text x="300" y="178"
-    font-family="Georgia,'Palatino Linotype',serif"
-    font-size="188" font-weight="bold"
-    fill="#F5C200" text-anchor="middle" letter-spacing="6">PDI</text>
-</svg>`;
-  const pdiUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(pdiSvg)));
-  const pdiText = new THREE.Mesh(
-    new THREE.PlaneGeometry(signW - 0.01, signH - 0.01),
-    new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load(pdiUrl) }),
-  );
-  pdiText.position.set(signX, signY, signZ + signD / 2 + 0.002);
-  scene.add(pdiText);
+  const signOff  = 0.02;
+  const signXF   = -(BW / 2 - signW / 2 - 0.06);
+  const signZF   =  (BD + 0.08) / 2 + signOff;
+  const latOff   =  (BW + 0.08) / 2 + signOff;
+  const zEdge    =   BD / 2 - signW / 2 - 0.06;
 
-  // ── PDI Signs — caras lateral izquierda, lateral derecha y trasera ──
-  // Cada letrero va en la esquina superior izquierda de su cara (mirando desde afuera).
-  // "Superior izquierda" se determina con cross(viewing_dir, up):
-  //   cara -X (izq): LEFT = -Z  →  sign2Z = -(BD/2 - signW/2 - 0.06)
-  //   cara +X (der): LEFT = +Z  →  sign3Z = +(BD/2 - signW/2 - 0.06)
-  //   cara -Z (tra): LEFT = +X  →  sign4X = +(BW/2 - signW/2 - 0.06)
-
-  const pdiMat  = new THREE.MeshStandardMaterial({ color: 0x102B6B, roughness: 0.5, metalness: 0.85 });
-  const pdiLoad = () => new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load(pdiUrl) });
-
-  // Helper: letrero lateral (caja delgada en X, ancha en Z)
-  function addLateralSign(cx: number, cz: number, rotY: number, textDx: number) {
-    const box = new THREE.Mesh(new THREE.BoxGeometry(signD, signH, signW), pdiMat);
-    box.position.set(cx, signY, cz);
-    scene.add(box);
-    ([
-      { rz: 0,                  ry:  signH / 2 - 0.015, isH: true  },
-      { rz: 0,                  ry: -signH / 2 + 0.015, isH: true  },
-      { rz: signW / 2 - 0.015,  ry: 0,                  isH: false },
-      { rz: -signW / 2 + 0.015, ry: 0,                  isH: false },
-    ]).forEach(({ rz, ry, isH }) => {
-      const r = new THREE.Mesh(new THREE.BoxGeometry(signD + 0.01, isH ? 0.03 : signH, isH ? signW : 0.03), rimMat);
-      r.position.set(cx, signY + ry, cz + rz);
-      scene.add(r);
-    });
-    const txt = new THREE.Mesh(new THREE.PlaneGeometry(signW - 0.01, signH - 0.01), pdiLoad());
-    txt.rotation.y = rotY;
-    txt.position.set(cx + textDx, signY, cz);
-    scene.add(txt);
-  }
-
-  // Helper: letrero frontal/trasero (caja ancha en X, delgada en Z)
-  function addFrontalSign(cx: number, cz: number, rotY: number, textDz: number) {
-    const box = new THREE.Mesh(new THREE.BoxGeometry(signW, signH, signD), pdiMat);
-    box.position.set(cx, signY, cz);
-    scene.add(box);
-    ([
-      { w: signW, rh: 0.03,  dx: 0,                  ry:  signH / 2 - 0.015 },
-      { w: signW, rh: 0.03,  dx: 0,                  ry: -signH / 2 + 0.015 },
-      { w: 0.03,  rh: signH, dx: -signW / 2 + 0.015, ry: 0 },
-      { w: 0.03,  rh: signH, dx:  signW / 2 - 0.015, ry: 0 },
-    ]).forEach(({ w, rh, dx, ry }) => {
-      const r = new THREE.Mesh(new THREE.BoxGeometry(w, rh, signD + 0.01), rimMat);
-      r.position.set(cx + dx, signY + ry, cz);
-      scene.add(r);
-    });
-    const txt = new THREE.Mesh(new THREE.PlaneGeometry(signW - 0.01, signH - 0.01), pdiLoad());
-    txt.rotation.y = rotY;
-    txt.position.set(cx, signY, cz + textDz);
-    scene.add(txt);
-  }
-
-  const latOff = (BW + 0.08) / 2 + signD / 2 + 0.015; // offset X desde eje hasta cara lateral
-  const zEdge  = BD / 2 - signW / 2 - 0.06;            // offset Z desde eje hasta borde del letrero
-
-  // Cara lateral izquierda (-X): upper-left desde afuera = -Z
-  addLateralSign(-latOff, -zEdge, -Math.PI / 2, -(signD / 2 + 0.002));
-
-  // Cara lateral derecha (+X): upper-left desde afuera = +Z
-  addLateralSign(+latOff, +zEdge, +Math.PI / 2, +(signD / 2 + 0.002));
-
+  // Cara frontal (+Z)
+  { const s = new THREE.Mesh(new THREE.PlaneGeometry(signW, signH), pdiPlaneMat);
+    s.position.set(signXF, signY, signZF); scene.add(s); }
   // Cara trasera (-Z): upper-left desde afuera = +X
-  addFrontalSign(+(BW / 2 - signW / 2 - 0.06), -signZ, Math.PI, -(signD / 2 + 0.002));
+  { const s = new THREE.Mesh(new THREE.PlaneGeometry(signW, signH), pdiPlaneMat);
+    s.position.set(-signXF, signY, -signZF); s.rotation.y = Math.PI; scene.add(s); }
+  // Cara lateral izquierda (-X)
+  { const s = new THREE.Mesh(new THREE.PlaneGeometry(signW, signH), pdiPlaneMat);
+    s.position.set(-latOff, signY, -zEdge); s.rotation.y = -Math.PI / 2; scene.add(s); }
+  // Cara lateral derecha (+X)
+  { const s = new THREE.Mesh(new THREE.PlaneGeometry(signW, signH), pdiPlaneMat);
+    s.position.set(+latOff, signY, +zEdge); s.rotation.y = +Math.PI / 2; scene.add(s); }
 
   // ── Ground ───────────────────────────────────────────────────
   const ground = new THREE.Mesh(
