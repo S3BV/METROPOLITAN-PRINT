@@ -188,7 +188,7 @@ renderer.domElement.addEventListener('mousemove', e => {
 
 renderer.domElement.addEventListener('click', e => {
   const idx = getHit(e);
-  if (idx < 0) return;
+  if (idx < 0 && selIdx < 0) return;
   if (selIdx >= 0) setFloorState(selIdx, selIdx === hovIdx ? 'hov' : 'normal');
   selIdx = selIdx === idx ? -1 : idx;
   if (selIdx >= 0) setFloorState(selIdx, 'sel');
