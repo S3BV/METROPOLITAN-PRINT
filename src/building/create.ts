@@ -172,70 +172,60 @@ export function createBuilding(scene: THREE.Scene, floors: Floor[]): BuildingRes
   scene.add(tapa);
 
   // ── Helipuerto elevado ────────────────────────────────────────
-  const tapaTop  = roofY + 0.50;          // superficie superior de la tapa
-  const helPlatW = 2.8, helPlatD = 2.8;   // plataforma cuadrada (< BW×BD)
-  const helPlatT = 0.10;                   // espesor de la plataforma
-  const helLegH  = 0.42;                   // altura libre bajo la plataforma
-  const helPlatY = tapaTop + helLegH + helPlatT / 2;
+  const tapaTop  = roofY + 0.50;
+  const helPlatW = 2.8, helPlatD = 2.8;
+  const helPlatT = 0.10;
+  const helBaseH = 0.42;                   // altura del pedestal rectangular
+  const helPlatY = tapaTop + helBaseH + helPlatT / 2;
   const helSurfY = helPlatY + helPlatT / 2;
 
-  const helGreenMat = new THREE.MeshStandardMaterial({ color: 0x3E5C28, roughness: 0.90, metalness: 0.05 });
+  const helGrayMat  = new THREE.MeshStandardMaterial({ color: 0x6A6E74, roughness: 0.85, metalness: 0.10 });
   const helMetalMat = new THREE.MeshStandardMaterial({ color: 0x26272C, roughness: 0.55, metalness: 0.90 });
 
-  // Plataforma
-  const helPlat = new THREE.Mesh(new THREE.BoxGeometry(helPlatW, helPlatT, helPlatD), helGreenMat);
+  // Plataforma gris
+  const helPlat = new THREE.Mesh(new THREE.BoxGeometry(helPlatW, helPlatT, helPlatD), helGrayMat);
   helPlat.position.set(0, helPlatY, 0);
   helPlat.castShadow = true; helPlat.receiveShadow = true;
   scene.add(helPlat);
 
-  // Patas de soporte: 4 esquinas + 4 centros de lado
-  const legEdge = helPlatW / 2 - 0.14;
-  const legMat  = helMetalMat;
-  ([
-    [+legEdge, +legEdge], [+legEdge, -legEdge],
-    [-legEdge, +legEdge], [-legEdge, -legEdge],
-    [+legEdge, 0], [-legEdge, 0], [0, +legEdge], [0, -legEdge],
-  ] as [number, number][]).forEach(([lx, lz]) => {
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, helLegH, 6), legMat);
-    leg.position.set(lx, tapaTop + helLegH / 2, lz);
-    leg.castShadow = true; scene.add(leg);
-  });
+  // Pedestal rectangular (reemplaza patas)
+  const helPed = new THREE.Mesh(new THREE.BoxGeometry(helPlatW, helBaseH, helPlatD), helMetalMat);
+  helPed.position.set(0, tapaTop + helBaseH / 2, 0);
+  helPed.castShadow = true;
+  scene.add(helPed);
 
-  // Barandilla perimetral: posts + riel superior + riel medio
-  const railH    = 0.20;
-  const railBaseY = helSurfY + 0.008;
+  // Cierre perimetral acostado/horizontal (reja transitable)
+  const grateW  = 0.24;   // ancho de la reja más allá del borde de la plataforma
+  const grateT  = 0.035;  // espesor de la reja
+  const grateY  = helSurfY + grateT / 2;
   const hw = helPlatW / 2, hd = helPlatD / 2;
 
-  // Posts (5 por lado, esquinas compartidas)
-  const nDiv = 4;
-  const postPositions: [number, number][] = [];
-  for (let i = 0; i <= nDiv; i++) {
-    const t = i / nDiv;
-    postPositions.push([-hw + t * helPlatW,  hd]);
-    postPositions.push([-hw + t * helPlatW, -hd]);
-    if (i > 0 && i < nDiv) {
-      postPositions.push([ hw, -hd + t * helPlatD]);
-      postPositions.push([-hw, -hd + t * helPlatD]);
-    }
+  // Textura de rejilla metálica
+  const grCv = document.createElement('canvas'); grCv.width = grCv.height = 128;
+  const grCtx = grCv.getContext('2d')!;
+  grCtx.fillStyle = '#2E3035';
+  grCtx.fillRect(0, 0, 128, 128);
+  grCtx.strokeStyle = '#52565C';
+  grCtx.lineWidth = 2;
+  for (let i = 0; i <= 128; i += 16) {
+    grCtx.beginPath(); grCtx.moveTo(i, 0); grCtx.lineTo(i, 128); grCtx.stroke();
+    grCtx.beginPath(); grCtx.moveTo(0, i); grCtx.lineTo(128, i); grCtx.stroke();
   }
-  postPositions.forEach(([px, pz]) => {
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, railH, 6), helMetalMat);
-    post.position.set(px, railBaseY + railH / 2, pz);
-    scene.add(post);
-  });
+  const grTex = new THREE.CanvasTexture(grCv);
+  grTex.wrapS = grTex.wrapT = THREE.RepeatWrapping;
+  const grateMat = new THREE.MeshStandardMaterial({ map: grTex, roughness: 0.7, metalness: 0.6 });
 
-  // Rieles horizontales (superior y medio)
-  const rt = 0.016;
-  ([railBaseY + railH - rt / 2, railBaseY + railH * 0.42]).forEach(ry => {
-    ([
-      { w: helPlatW + rt * 2, d: rt, x: 0,   z:  hd },
-      { w: helPlatW + rt * 2, d: rt, x: 0,   z: -hd },
-      { w: rt, d: helPlatD,   x:  hw, z: 0 },
-      { w: rt, d: helPlatD,   x: -hw, z: 0 },
-    ] as { w:number; d:number; x:number; z:number }[]).forEach(({ w, d, x, z }) => {
-      const r = new THREE.Mesh(new THREE.BoxGeometry(w, rt, d), helMetalMat);
-      r.position.set(x, ry, z); scene.add(r);
-    });
+  // 4 paneles horizontales perimetrales (frente, atrás, izquierda, derecha)
+  ([
+    { w: helPlatW + grateW * 2, d: grateW, x: 0,          z:  hd + grateW / 2 },
+    { w: helPlatW + grateW * 2, d: grateW, x: 0,          z: -hd - grateW / 2 },
+    { w: grateW,  d: helPlatD,             x:  hw + grateW / 2, z: 0 },
+    { w: grateW,  d: helPlatD,             x: -hw - grateW / 2, z: 0 },
+  ] as { w:number; d:number; x:number; z:number }[]).forEach(({ w, d, x, z }) => {
+    const g = new THREE.Mesh(new THREE.BoxGeometry(w, grateT, d), grateMat);
+    g.position.set(x, grateY, z);
+    g.castShadow = true;
+    scene.add(g);
   });
 
   // Marcaje: círculo amarillo + H blanca
