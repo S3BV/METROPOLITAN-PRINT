@@ -171,41 +171,90 @@ export function createBuilding(scene: THREE.Scene, floors: Floor[]): BuildingRes
   tapa.castShadow = true;
   scene.add(tapa);
 
-  // ── Helipuerto ────────────────────────────────────────────────
-  const tapaH = 0.28;
-  const helY  = roofY + tapaH + 0.07;
+  // ── Helipuerto elevado ────────────────────────────────────────
+  const tapaTop  = roofY + 0.50;          // superficie superior de la tapa
+  const helPlatW = 2.8, helPlatD = 2.8;   // plataforma cuadrada (< BW×BD)
+  const helPlatT = 0.10;                   // espesor de la plataforma
+  const helLegH  = 0.42;                   // altura libre bajo la plataforma
+  const helPlatY = tapaTop + helLegH + helPlatT / 2;
+  const helSurfY = helPlatY + helPlatT / 2;
 
-  const helBase = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.08, 1.08, 0.1, 40),
-    new THREE.MeshStandardMaterial({ color: 0x141c26, roughness: 0.65, metalness: 0.3 }),
-  );
-  helBase.position.set(0, helY + 0.05, 0);
-  helBase.castShadow = true;
-  scene.add(helBase);
+  const helGreenMat = new THREE.MeshStandardMaterial({ color: 0x3E5C28, roughness: 0.90, metalness: 0.05 });
+  const helMetalMat = new THREE.MeshStandardMaterial({ color: 0x26272C, roughness: 0.55, metalness: 0.90 });
 
-  const helRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.88, 1.04, 40),
-    new THREE.MeshBasicMaterial({ color: 0xddcc00, side: THREE.DoubleSide }),
-  );
-  helRing.rotation.x = -Math.PI / 2;
-  helRing.position.set(0, helY + 0.11, 0);
-  scene.add(helRing);
+  // Plataforma
+  const helPlat = new THREE.Mesh(new THREE.BoxGeometry(helPlatW, helPlatT, helPlatD), helGreenMat);
+  helPlat.position.set(0, helPlatY, 0);
+  helPlat.castShadow = true; helPlat.receiveShadow = true;
+  scene.add(helPlat);
 
-  const hc = document.createElement('canvas'); hc.width = hc.height = 256;
-  const hx = hc.getContext('2d')!;
-  hx.strokeStyle = '#ddcc00'; hx.lineWidth = 14;
-  hx.beginPath(); hx.arc(128, 128, 100, 0, Math.PI * 2); hx.stroke();
-  hx.fillStyle = '#ddcc00';
-  hx.font = 'bold 118px sans-serif';
-  hx.textAlign = 'center'; hx.textBaseline = 'middle';
-  hx.fillText('H', 128, 132);
+  // Patas de soporte: 4 esquinas + 4 centros de lado
+  const legEdge = helPlatW / 2 - 0.14;
+  const legMat  = helMetalMat;
+  ([
+    [+legEdge, +legEdge], [+legEdge, -legEdge],
+    [-legEdge, +legEdge], [-legEdge, -legEdge],
+    [+legEdge, 0], [-legEdge, 0], [0, +legEdge], [0, -legEdge],
+  ] as [number, number][]).forEach(([lx, lz]) => {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, helLegH, 6), legMat);
+    leg.position.set(lx, tapaTop + helLegH / 2, lz);
+    leg.castShadow = true; scene.add(leg);
+  });
+
+  // Barandilla perimetral: posts + riel superior + riel medio
+  const railH    = 0.20;
+  const railBaseY = helSurfY + 0.008;
+  const hw = helPlatW / 2, hd = helPlatD / 2;
+
+  // Posts (5 por lado, esquinas compartidas)
+  const nDiv = 4;
+  const postPositions: [number, number][] = [];
+  for (let i = 0; i <= nDiv; i++) {
+    const t = i / nDiv;
+    postPositions.push([-hw + t * helPlatW,  hd]);
+    postPositions.push([-hw + t * helPlatW, -hd]);
+    if (i > 0 && i < nDiv) {
+      postPositions.push([ hw, -hd + t * helPlatD]);
+      postPositions.push([-hw, -hd + t * helPlatD]);
+    }
+  }
+  postPositions.forEach(([px, pz]) => {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, railH, 6), helMetalMat);
+    post.position.set(px, railBaseY + railH / 2, pz);
+    scene.add(post);
+  });
+
+  // Rieles horizontales (superior y medio)
+  const rt = 0.016;
+  ([railBaseY + railH - rt / 2, railBaseY + railH * 0.42]).forEach(ry => {
+    ([
+      { w: helPlatW + rt * 2, d: rt, x: 0,   z:  hd },
+      { w: helPlatW + rt * 2, d: rt, x: 0,   z: -hd },
+      { w: rt, d: helPlatD,   x:  hw, z: 0 },
+      { w: rt, d: helPlatD,   x: -hw, z: 0 },
+    ] as { w:number; d:number; x:number; z:number }[]).forEach(({ w, d, x, z }) => {
+      const r = new THREE.Mesh(new THREE.BoxGeometry(w, rt, d), helMetalMat);
+      r.position.set(x, ry, z); scene.add(r);
+    });
+  });
+
+  // Marcaje: círculo amarillo + H blanca
+  const hcv = document.createElement('canvas'); hcv.width = hcv.height = 512;
+  const hctx = hcv.getContext('2d')!;
+  hctx.clearRect(0, 0, 512, 512);
+  hctx.strokeStyle = '#DDCC00'; hctx.lineWidth = 22;
+  hctx.beginPath(); hctx.arc(256, 256, 212, 0, Math.PI * 2); hctx.stroke();
+  hctx.fillStyle = '#FFFFFF';
+  hctx.font = 'bold 270px sans-serif';
+  hctx.textAlign = 'center'; hctx.textBaseline = 'middle';
+  hctx.fillText('H', 256, 272);
 
   const helDisc = new THREE.Mesh(
-    new THREE.CircleGeometry(0.86, 40),
-    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(hc), transparent: true }),
+    new THREE.CircleGeometry(1.12, 48),
+    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(hcv), transparent: true }),
   );
   helDisc.rotation.x = -Math.PI / 2;
-  helDisc.position.set(0, helY + 0.115, 0);
+  helDisc.position.set(0, helSurfY + 0.002, 0);
   scene.add(helDisc);
 
   // ── PDI Signs — letras 3D con relieve (sin caja) ─────────────
