@@ -95,16 +95,44 @@ export function createBuilding(scene: THREE.Scene, floors: Floor[]): BuildingRes
     const tex = new THREE.CanvasTexture(cv);
     tex.minFilter = THREE.LinearMipmapLinearFilter;
     const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
-    const zOvl = BD / 2 + 0.02;
-    mullZones.forEach(({ y0, y1 }) => {
+
+    // Crea geometría de quad diagonal para las zonas oblicuas
+    function diagGeo(y0: number, h: number, zL: number, zR: number, flipWinding: boolean): THREE.BufferGeometry {
+      const pos = new Float32Array([
+        -BW/2, y0,   zL,
+         BW/2, y0,   zR,
+         BW/2, y0+h, zR,
+        -BW/2, y0+h, zL,
+      ]);
+      const uv  = new Float32Array([0,0, 1,0, 1,1, 0,1]);
+      const idx = flipWinding
+        ? new Uint16Array([0,2,1, 0,3,2])
+        : new Uint16Array([0,1,2, 0,2,3]);
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      g.setAttribute('uv',       new THREE.BufferAttribute(uv,  2));
+      g.setIndex(new THREE.BufferAttribute(idx, 1));
+      return g;
+    }
+
+    mullZones.forEach(({ y0, y1, zone }) => {
       const h = y1 - y0;
-      const front = new THREE.Mesh(new THREE.PlaneGeometry(BW, h), mat);
-      front.position.set(0, y0 + h / 2, zOvl);
-      scene.add(front);
-      const back = new THREE.Mesh(new THREE.PlaneGeometry(BW, h), mat);
-      back.position.set(0, y0 + h / 2, -zOvl);
-      back.rotation.y = Math.PI;
-      scene.add(back);
+      if (zone === 'rect') {
+        const zOvl = BD / 2 + 0.02;
+        const front = new THREE.Mesh(new THREE.PlaneGeometry(BW, h), mat);
+        front.position.set(0, y0 + h / 2, zOvl);
+        scene.add(front);
+        const back = new THREE.Mesh(new THREE.PlaneGeometry(BW, h), mat);
+        back.position.set(0, y0 + h / 2, -zOvl);
+        back.rotation.y = Math.PI;
+        scene.add(back);
+      } else {
+        // Zonas oblicuas: cara frontal y trasera son diagonales
+        const zL = (zone === 'low' ? BD/2 : (BD - TRAP_TAPER)/2) + 0.02;
+        const zR = (zone === 'low' ? (BD - TRAP_TAPER)/2 : BD/2) + 0.02;
+        scene.add(new THREE.Mesh(diagGeo(y0, h,  zL,  zR, false), mat));  // frente
+        scene.add(new THREE.Mesh(diagGeo(y0, h, -zL, -zR, true),  mat));  // trasera
+      }
     });
   })();
 
