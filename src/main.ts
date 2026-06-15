@@ -164,7 +164,6 @@ function refresh3DFloor(floorId: string): void {
 }
 
 FLOORS.forEach(f => refresh3DFloor(f.id));
-showDetail(null);
 
 // ── Interaction ───────────────────────────────────────────────
 const ray = new THREE.Raycaster();
@@ -336,6 +335,8 @@ function showDetail(floor: Floor | null): void {
         </table></div>`
     }`;
 }
+
+showDetail(null);
 
 // ── Modal ─────────────────────────────────────────────────────
 window._openModal = function(piso: string, idx: number) {
