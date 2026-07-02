@@ -246,8 +246,8 @@ function showDetail(floor: Floor | null): void {
     ph.classList.add('opacity-0');
     det.classList.remove('opacity-0', 'pointer-events-none');
 
-    const totalP       = activeFloors.reduce((s, f) => s + floorEffectiveP(f.id), 0);
-    const avgP         = Math.round(totalP / activeFloors.length);
+    const totalP       = FLOORS.reduce((s, f) => s + floorEffectiveP(f.id), 0);
+    const avgP         = Math.round(totalP / FLOORS.length);
     const avgC         = floorColor(avgP);
     const totalPrinters = PRINTERS.length;
 
