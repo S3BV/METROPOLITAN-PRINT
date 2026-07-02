@@ -5,8 +5,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { db, loadPrinters } from './supabase';
 import { createBuilding } from './building/create';
 import { buildSiteContext, loadSiteGLB } from './site/siteContext';
-import siteContextData from './data/site-context.json';
-import { SITE_ORIGIN_LAT, SITE_ORIGIN_LON, SITE_ROTATION_DEG, SITE_METERS_TO_UNITS } from './constants';
+import { SITE_ORIGIN_LAT, SITE_ORIGIN_LON, SITE_ROTATION_DEG, SITE_METERS_TO_UNITS, SITE_FOOTPRINT_MARGIN } from './constants';
 import type { Floor, Printer, PEstado, FloorState } from './types';
 
 declare global {
@@ -103,28 +102,31 @@ scene.add(skyFill);
 const { floorMeshes, floorMeshesL, floorMeshesR, TOTAL_H } = createBuilding(scene, FLOORS);
 
 // ── Contexto urbano (morfología real alrededor del edificio) ───
-// Opción A (por defecto): edificios/calles reales generados desde OSM.
-// src/data/site-context.json empieza vacío — al pegar ahí el export de
-// Overpass Turbo (ver instrucciones del equipo), este bloque los dibuja
-// automáticamente sin tocar código.
+// Opción A (por defecto): edificios/calles reales generados desde OSM,
+// servidos como asset estático (public/site-context.json) y traídos con
+// fetch — para actualizar el entorno solo hay que reemplazar ese archivo.
+// Opción B: si en vez de datos OSM se usa un entorno modelado a mano,
+// public/site-context.glb se carga con GLTFLoader en su lugar.
 const siteOpts = {
   originLat: SITE_ORIGIN_LAT,
   originLon: SITE_ORIGIN_LON,
   rotationDeg: SITE_ROTATION_DEG,
   metersToUnits: SITE_METERS_TO_UNITS,
+  footprintMargin: SITE_FOOTPRINT_MARGIN,
 };
-const hasOsmData = (siteContextData as { features: unknown[] }).features?.length > 0;
-if (hasOsmData) {
-  scene.add(buildSiteContext(siteContextData as Parameters<typeof buildSiteContext>[0], siteOpts));
-} else {
-  // Opción B: si en vez de datos OSM prefieren mandar un entorno modelado
-  // a mano (.glb), colócalo en public/site-context.glb — se carga solo,
-  // con el mismo origen/rotación que la opción A.
-  void loadSiteGLB(scene, '/site-context.glb', {
-    position: new THREE.Vector3(0, 0, 0),
-    rotationYDeg: SITE_ROTATION_DEG,
-  }).catch(() => { /* no hay .glb todavía — se ignora */ });
-}
+fetch('/site-context.json')
+  .then(r => r.ok ? r.json() : null)
+  .then(data => {
+    if (data?.features?.length) {
+      scene.add(buildSiteContext(data, siteOpts));
+    } else {
+      return loadSiteGLB(scene, '/site-context.glb', {
+        position: new THREE.Vector3(0, 0, 0),
+        rotationYDeg: SITE_ROTATION_DEG,
+      });
+    }
+  })
+  .catch(() => { /* no hay contexto urbano todavía — se ignora */ });
 
 const midY = TOTAL_H / 2;
 camera.position.set(-6, midY + 2.5, 22);

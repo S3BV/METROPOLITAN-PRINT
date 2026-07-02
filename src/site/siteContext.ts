@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { BW, BD } from '../constants';
 import { geoToScene, type GeoProjectOpts } from './geo';
 
 // ── Opción A: contexto urbano generado desde OpenStreetMap (GeoJSON) ──
 
 export interface SiteContextOptions extends GeoProjectOpts {
-  defaultLevels?: number; // pisos asumidos si el edificio OSM no trae altura
-  levelHeightM?: number;  // metros por piso asumidos
+  defaultLevels?: number;      // pisos asumidos si el edificio OSM no trae altura
+  levelHeightM?: number;       // metros por piso asumidos
+  footprintMargin?: number;    // unidades de escena extra alrededor del edificio esquemático a excluir del contexto OSM
 }
 
 interface GeoJSONFeature {
@@ -20,8 +22,13 @@ interface GeoJSONCollection {
   features: GeoJSONFeature[];
 }
 
-const buildingMat = new THREE.MeshStandardMaterial({ color: 0x3a4048, roughness: 0.92, metalness: 0.04 });
-const roadMat     = new THREE.MeshStandardMaterial({ color: 0x1a1d22, roughness: 1.0 });
+// Los edificios de contexto se muestran translúcidos ("massing" arquitectónico):
+// dan noción real de posición/escala del entorno sin competir visualmente
+// con el edificio protagonista.
+const buildingMat = new THREE.MeshStandardMaterial({
+  color: 0x3a4048, roughness: 0.92, metalness: 0.04, transparent: true, opacity: 0.55,
+});
+const roadMat = new THREE.MeshStandardMaterial({ color: 0x1a1d22, roughness: 1.0 });
 
 function tagsOf(props: Record<string, any>): Record<string, any> {
   // El export de Overpass Turbo anida los tags en `properties.tags`; otros export los dejan planos.
@@ -36,13 +43,20 @@ function buildingHeightM(tags: Record<string, any>, opts: Required<Pick<SiteCont
   return lvl * opts.levelHeightM;
 }
 
-function ringToShape(ring: [number, number][], opts: SiteContextOptions): THREE.Shape {
+function ringToScenePoints(ring: [number, number][], opts: SiteContextOptions): { x: number; z: number }[] {
+  return ring.map(([lon, lat]) => geoToScene(lat, lon, opts));
+}
+
+function scenePointsToShape(pts: { x: number; z: number }[]): THREE.Shape {
   const shape = new THREE.Shape();
-  ring.forEach(([lon, lat], i) => {
-    const { x, z } = geoToScene(lat, lon, opts);
-    if (i === 0) shape.moveTo(x, z); else shape.lineTo(x, z);
-  });
+  pts.forEach((p, i) => (i === 0 ? shape.moveTo(p.x, p.z) : shape.lineTo(p.x, p.z)));
   return shape;
+}
+
+/** true si algún vértice cae dentro de la huella (expandida) del edificio esquemático. */
+function overlapsSchematicFootprint(pts: { x: number; z: number }[], margin: number): boolean {
+  const halfW = BW / 2 + margin, halfD = BD / 2 + margin;
+  return pts.some(p => Math.abs(p.x) < halfW && Math.abs(p.z) < halfD);
 }
 
 function buildRoadRibbon(points: { x: number; z: number }[], widthUnits: number): THREE.Mesh {
@@ -79,7 +93,7 @@ const ROAD_WIDTH_M: Record<string, number> = {
 
 /** Construye un THREE.Group con los edificios y calles reales alrededor del origen configurado. */
 export function buildSiteContext(geojson: GeoJSONCollection, options: SiteContextOptions): THREE.Group {
-  const opts = { defaultLevels: 4, levelHeightM: 3.2, ...options };
+  const opts = { defaultLevels: 4, levelHeightM: 3.2, footprintMargin: 0.4, ...options };
   const group = new THREE.Group();
   group.name = 'site-context';
 
@@ -89,11 +103,16 @@ export function buildSiteContext(geojson: GeoJSONCollection, options: SiteContex
     if (!geom) continue;
 
     if (geom.type === 'Polygon' && tags.building) {
+      const [outer, ...holes] = geom.coordinates as [number, number][][];
+      const outerPts = ringToScenePoints(outer, opts);
+      // Omite el propio edificio del sitio (y vecinos pegados con muro medianero):
+      // ya está representado por el modelo esquemático detallado.
+      if (overlapsSchematicFootprint(outerPts, opts.footprintMargin)) continue;
+
       const heightUnits = buildingHeightM(tags, opts) * opts.metersToUnits;
       if (heightUnits <= 0) continue;
-      const [outer, ...holes] = geom.coordinates as [number, number][][];
-      const shape = ringToShape(outer, opts);
-      holes.forEach(h => shape.holes.push(ringToShape(h, opts)));
+      const shape = scenePointsToShape(outerPts);
+      holes.forEach(h => shape.holes.push(scenePointsToShape(ringToScenePoints(h, opts))));
       const geo = new THREE.ExtrudeGeometry(shape, { depth: heightUnits, bevelEnabled: false, curveSegments: 4 });
       geo.rotateX(-Math.PI / 2);
       const mesh = new THREE.Mesh(geo, buildingMat);

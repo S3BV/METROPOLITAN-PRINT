@@ -28,3 +28,9 @@ export const SITE_METERS_TO_UNITS = 0.12;
 
 // Radio (metros) de contexto urbano a traer alrededor del origen.
 export const SITE_RADIUS_M = 200;
+
+// Margen (unidades de escena) alrededor de la huella del edificio
+// esquemático (BW x BD) que se excluye del contexto OSM: ahí cae el
+// propio edificio del sitio y los vecinos con muro medianero pegado,
+// ya representados por el modelo esquemático detallado.
+export const SITE_FOOTPRINT_MARGIN = 0.4;
