@@ -441,6 +441,15 @@ window._closeModal = function() {
   document.getElementById('modal')!.classList.add('hidden');
 };
 
+// Solo cierra el modal si el mousedown Y el mouseup ocurrieron sobre el overlay,
+// no cuando el usuario arrastra texto desde dentro del formulario hacia afuera.
+{
+  const overlay = document.getElementById('modal')!;
+  let _downOnOverlay = false;
+  overlay.addEventListener('mousedown', e => { _downOnOverlay = e.target === overlay; });
+  overlay.addEventListener('mouseup',   e => { if (e.target === overlay && _downOnOverlay) window._closeModal(); });
+}
+
 window._saveModal = async function() {
   const g = (id: string) => (document.getElementById(id) as HTMLInputElement).value.trim();
   const hh = g('fi-hh'), ip = g('fi-ip');
