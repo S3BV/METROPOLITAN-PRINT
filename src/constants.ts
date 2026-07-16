@@ -41,7 +41,7 @@ export const SITE_FOOTPRINT_MARGIN = 1.8;
 // de la pantalla (desde la posición inicial de la cámara).
 //   X: negativo → derecha,  positivo → izquierda
 //   Z: negativo → abajo,    positivo → arriba
-export const BUILDING_OFFSET_X = -0.8;
-export const BUILDING_OFFSET_Z = -3.5;
+export const BUILDING_OFFSET_X = 3;
+export const BUILDING_OFFSET_Z = -17
 // Rotación del edificio sobre su eje vertical (grados, sentido horario visto desde arriba).
-export const BUILDING_ROTATION_DEG = -7;
+export const BUILDING_ROTATION_DEG = 104;

@@ -4,8 +4,8 @@ import { OrbitControls }  from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { db, loadPrinters } from './supabase';
 import { createBuilding } from './building/create';
-import { buildSiteContext, loadSiteGLB } from './site/siteContext';
-import { SITE_ORIGIN_LAT, SITE_ORIGIN_LON, SITE_ROTATION_DEG, SITE_METERS_TO_UNITS, SITE_FOOTPRINT_MARGIN, BUILDING_OFFSET_X, BUILDING_OFFSET_Z, BUILDING_ROTATION_DEG } from './constants';
+import { loadSiteGLB } from './site/siteContext';
+import { BUILDING_OFFSET_X, BUILDING_OFFSET_Z, BUILDING_ROTATION_DEG } from './constants';
 import type { Floor, Printer, PEstado, FloorState } from './types';
 
 declare global {
@@ -71,7 +71,7 @@ let _modalChecklist: Record<string, boolean> = {};
 const wrap = document.getElementById('three-wrap')!;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x8ab8d8);
-scene.fog = new THREE.Fog(0x8ab8d8, 40, 90);
+scene.fog = new THREE.Fog(0x8ab8d8, 65, 160);
 
 const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -104,56 +104,51 @@ scene.add(skyFill);
 const buildingGroup = new THREE.Group();
 buildingGroup.position.set(BUILDING_OFFSET_X, 0, BUILDING_OFFSET_Z);
 buildingGroup.rotation.y = THREE.MathUtils.degToRad(BUILDING_ROTATION_DEG);
+buildingGroup.scale.setScalar(1.263);
 scene.add(buildingGroup);
 const { floorMeshes, floorMeshesL, floorMeshesR, TOTAL_H } = createBuilding(buildingGroup, FLOORS);
 
-// ── Contexto urbano (morfología real alrededor del edificio) ───
-// Opción A (por defecto): edificios/calles reales generados desde OSM,
-// servidos como asset estático (public/site-context.json) y traídos con
-// fetch — para actualizar el entorno solo hay que reemplazar ese archivo.
-// Opción B: si en vez de datos OSM se usa un entorno modelado a mano,
-// public/site-context.glb se carga con GLTFLoader en su lugar.
-const siteOpts = {
-  originLat: SITE_ORIGIN_LAT,
-  originLon: SITE_ORIGIN_LON,
-  rotationDeg: SITE_ROTATION_DEG,
-  metersToUnits: SITE_METERS_TO_UNITS,
-  footprintMargin: SITE_FOOTPRINT_MARGIN,
-  buildingOffsetX: BUILDING_OFFSET_X,
-  buildingOffsetZ: BUILDING_OFFSET_Z,
-};
-fetch('/site-context.json')
-  .then(r => r.ok ? r.json() : null)
-  .then(data => {
-    if (data?.features?.length) {
-      scene.add(buildSiteContext(data, siteOpts));
-    } else {
-      return loadSiteGLB(scene, '/site-context.glb', {
-        position: new THREE.Vector3(0, 0, 0),
-        rotationYDeg: SITE_ROTATION_DEG,
-      });
-    }
-  })
-  .catch(() => { /* no hay contexto urbano todavía — se ignora */ });
+// ── Contexto urbano (Ciudad.glb) ──────────────────────────────
+loadSiteGLB(scene, '/site-context.glb', {
+  position: new THREE.Vector3(1.4, -1.2, -4.3),
+  rotationYDeg: -84,
+  scale: 0.18,
+  color: 0xdce8f0,
+  opacity: 0.72,
+  naturalColor: 0x5abf40,
+  naturalOpacity: 0.45,
+});
 
 const midY = TOTAL_H / 2;
-camera.position.set(-6, midY + 2.5, 22);
-camera.lookAt(0, midY, 0);
+const bx = BUILDING_OFFSET_X, bz = BUILDING_OFFSET_Z;
+
+// ── Plano de base gris ─────────────────────────────────────────
+const groundMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(2000, 2000),
+  new THREE.MeshStandardMaterial({ color: 0x1e2022, roughness: 0.95 }),
+);
+groundMesh.rotation.x = -Math.PI / 2;
+groundMesh.position.set(bx, 0.05, bz);
+groundMesh.receiveShadow = true;
+scene.add(groundMesh);
+
+camera.position.set(bx - 8, midY + 12, bz + 30);
+camera.lookAt(bx, midY, bz);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, midY, 0);
+controls.target.set(bx, midY, bz);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 controls.minPolarAngle = 0.15;
 controls.maxPolarAngle = Math.PI / 2 - 0.02;
 controls.minDistance = 5;
-controls.maxDistance = 45;
+controls.maxDistance = 80;
 controls.autoRotate = true;
-controls.autoRotateSpeed = -0.8;
+controls.autoRotateSpeed = 0.8;
 controls.update();
 
-const _initCamPos = new THREE.Vector3(-6, midY + 2.5, 22);
-const _initTarget = new THREE.Vector3(0, midY, 0);
+const _initCamPos = new THREE.Vector3(bx - 8, midY + 12, bz + 30);
+const _initTarget = new THREE.Vector3(bx, midY, bz);
 window._resetCamera = function() {
   controls.autoRotate = false;
   camera.position.copy(_initCamPos);
@@ -260,7 +255,18 @@ onResize();
 new ResizeObserver(onResize).observe(wrap);
 
 // ── Render loop ───────────────────────────────────────────────
-(function loop() { requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
+const _zoomEl = document.getElementById('zoom-pct');
+const _zoomMin = controls.minDistance, _zoomMax = controls.maxDistance;
+(function loop() {
+  requestAnimationFrame(loop);
+  controls.update();
+  renderer.render(scene, camera);
+  if (_zoomEl) {
+    const dist = camera.position.distanceTo(controls.target);
+    const pct = Math.round(100 - ((dist - _zoomMin) / (_zoomMax - _zoomMin)) * 100);
+    _zoomEl.textContent = `Zoom · ${Math.max(0, Math.min(100, pct))}%`;
+  }
+})();
 
 // ── Detail panel ──────────────────────────────────────────────
 const HITOS = ['Levantamiento', 'Instalación', 'Configuración'];

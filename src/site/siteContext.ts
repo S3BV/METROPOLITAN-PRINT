@@ -137,6 +137,10 @@ export interface SiteGLBOptions {
   position?: THREE.Vector3;
   rotationYDeg?: number;
   scale?: number;
+  color?: number;
+  opacity?: number;
+  naturalColor?: number;   // color para mallas cuyo material original es verdoso (cerros, parques)
+  naturalOpacity?: number;
 }
 
 /** Carga un .glb (ej. terreno/manzana modelada a mano) y lo agrega a la escena en la posición/rotación dadas. */
@@ -150,9 +154,42 @@ export function loadSiteGLB(scene: THREE.Scene, url: string, opts: SiteGLBOption
         if (opts.position) root.position.copy(opts.position);
         if (opts.rotationYDeg !== undefined) root.rotation.y = THREE.MathUtils.degToRad(opts.rotationYDeg);
         if (opts.scale !== undefined) root.scale.setScalar(opts.scale);
+        const hasOverride = opts.color !== undefined || opts.opacity !== undefined;
+        const overrideMat = hasOverride ? new THREE.MeshStandardMaterial({
+          color: opts.color ?? 0xffffff,
+          roughness: 0.85,
+          metalness: 0.0,
+          transparent: true,
+          opacity: opts.opacity ?? 1.0,
+          depthWrite: false,
+          flatShading: true,
+          polygonOffset: true,
+          polygonOffsetFactor: 1,
+          polygonOffsetUnits: 1,
+        }) : null;
+        const naturalMat = (opts.naturalColor !== undefined) ? new THREE.MeshStandardMaterial({
+          color: opts.naturalColor,
+          roughness: 0.9,
+          metalness: 0.0,
+          transparent: true,
+          opacity: opts.naturalOpacity ?? opts.opacity ?? 1.0,
+          depthWrite: false,
+          flatShading: true,
+          polygonOffset: true,
+          polygonOffsetFactor: 1,
+          polygonOffsetUnits: 1,
+        }) : null;
         root.traverse(o => {
           const mesh = o as THREE.Mesh;
-          if (mesh.isMesh) { mesh.castShadow = true; mesh.receiveShadow = true; }
+          if (!mesh.isMesh) return;
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          if (!overrideMat) return;
+          // Detecta si el material original es verdoso (cerro, parques, vegetación)
+          const src = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+          const c = (src as THREE.MeshStandardMaterial)?.color ?? new THREE.Color(1, 1, 1);
+          const isNatural = naturalMat && c.g > c.r * 1.15 && c.g > c.b * 1.1;
+          mesh.material = isNatural ? naturalMat : overrideMat;
         });
         scene.add(root);
         resolve(root);
