@@ -13,22 +13,24 @@
   <button class="btn">Historial</button>
 </nav>
 
-<div class="flex gap-4 p-4 h-[calc(100vh-48px)]">
+<div class="flex flex-col md:flex-row gap-3 md:gap-4 p-3 md:p-4 h-[calc(100dvh-48px)]">
 
-  <div id="three-wrap" class="shrink-0 w-[380px] rounded-xl overflow-hidden relative bg-[#0c1018]">
+  <div id="three-wrap" class="shrink-0 w-full h-[42vh] md:w-[380px] md:h-auto rounded-xl overflow-hidden relative bg-[#0c1018]">
     <div class="absolute top-3 right-3 z-10 text-[10px] text-[#2a3040] pointer-events-none text-right leading-5">
-      Scroll · zoom<br>Drag · rotar<br>
-      <span id="zoom-pct" style="color:#1e2a38">Zoom · 100%</span>
+      <span class="hidden md:inline">Scroll · zoom<br>Drag · rotar</span>
+      <span class="md:hidden">Pellizca · zoom<br>Arrastra · rotar</span>
+      <br><span id="zoom-pct" style="color:#1e2a38">Zoom · 100%</span>
     </div>
-    <button onclick="window._resetCamera()" style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:10;font-size:10px;color:#7a8899;background:rgba(10,14,20,0.75);border:1px solid #1e2a38;border-radius:6px;padding:4px 12px;cursor:pointer;letter-spacing:.02em;" onmouseover="this.style.color='#c0cad4';this.style.borderColor='#2e4255'" onmouseout="this.style.color='#7a8899';this.style.borderColor='#1e2a38'">↺ Posición inicial</button>
+    <button onclick="window._resetCamera()" style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:10;font-size:10px;color:#7a8899;background:rgba(10,14,20,0.75);border:1px solid #1e2a38;border-radius:6px;padding:6px 16px;cursor:pointer;letter-spacing:.02em;" onmouseover="this.style.color='#c0cad4';this.style.borderColor='#2e4255'" onmouseout="this.style.color='#7a8899';this.style.borderColor='#1e2a38'">↺ Posición inicial</button>
   </div>
 
-  <div class="flex-1 bg-surface border border-border rounded-xl overflow-hidden relative">
+  <div class="flex-1 min-h-0 bg-surface border border-border rounded-xl overflow-hidden relative">
     <div id="placeholder" class="absolute inset-0 flex items-center justify-center gap-2.5 text-subtle text-sm pointer-events-none transition-opacity duration-200">
-      <span class="text-xl opacity-40">←</span>
-      <span>Haz clic en un piso del edificio</span>
+      <span class="text-xl opacity-40 md:inline hidden">←</span>
+      <span class="md:hidden opacity-40">↑</span>
+      <span>Toca un piso del edificio</span>
     </div>
-    <div id="detail" class="absolute inset-0 p-7 overflow-y-auto opacity-0 pointer-events-none transition-opacity duration-300"></div>
+    <div id="detail" class="absolute inset-0 p-4 md:p-7 overflow-y-auto opacity-0 pointer-events-none transition-opacity duration-300"></div>
   </div>
 
 </div>

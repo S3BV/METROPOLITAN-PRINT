@@ -30,3 +30,9 @@
   .act-btn:hover{border-color:#3a4050;color:#c0cad4}
   .act-btn.danger:hover{border-color:#d42020;color:#d42020}
 }
+
+@media (max-width: 767px) {
+  .modal-box { width: calc(100vw - 24px) !important; max-width: 100% !important; padding: 16px !important; }
+  .form-row  { grid-template-columns: 1fr !important; }
+  .p-table th, .p-table td { padding: 5px 7px !important; }
+}
