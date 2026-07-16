@@ -5,7 +5,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { db, loadPrinters } from './supabase';
 import { createBuilding } from './building/create';
 import { buildSiteContext, loadSiteGLB } from './site/siteContext';
-import { SITE_ORIGIN_LAT, SITE_ORIGIN_LON, SITE_ROTATION_DEG, SITE_METERS_TO_UNITS, SITE_FOOTPRINT_MARGIN } from './constants';
+import { SITE_ORIGIN_LAT, SITE_ORIGIN_LON, SITE_ROTATION_DEG, SITE_METERS_TO_UNITS, SITE_FOOTPRINT_MARGIN, BUILDING_OFFSET_X, BUILDING_OFFSET_Z, BUILDING_ROTATION_DEG } from './constants';
 import type { Floor, Printer, PEstado, FloorState } from './types';
 
 declare global {
@@ -99,7 +99,13 @@ skyFill.position.set(-6, 6, -10);
 scene.add(skyFill);
 
 // ── Building ──────────────────────────────────────────────────
-const { floorMeshes, floorMeshesL, floorMeshesR, TOTAL_H } = createBuilding(scene, FLOORS);
+// Offset para alinear el edificio con su posición real en el contexto OSM.
+// Ajustar X (este/oeste) y Z (norte/sur) hasta que el edificio quede sobre el lote correcto.
+const buildingGroup = new THREE.Group();
+buildingGroup.position.set(BUILDING_OFFSET_X, 0, BUILDING_OFFSET_Z);
+buildingGroup.rotation.y = THREE.MathUtils.degToRad(BUILDING_ROTATION_DEG);
+scene.add(buildingGroup);
+const { floorMeshes, floorMeshesL, floorMeshesR, TOTAL_H } = createBuilding(buildingGroup, FLOORS);
 
 // ── Contexto urbano (morfología real alrededor del edificio) ───
 // Opción A (por defecto): edificios/calles reales generados desde OSM,

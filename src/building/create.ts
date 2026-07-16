@@ -24,7 +24,7 @@ function makeLabel(text: string): THREE.SpriteMaterial {
   return new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false, sizeAttenuation: true });
 }
 
-export function createBuilding(scene: THREE.Scene, floors: Floor[]): BuildingResult {
+export function createBuilding(scene: THREE.Object3D, floors: Floor[]): BuildingResult {
   const N      = floors.length;
   const floorY = computeFloorY(N);
   const GROUND_Y = floorY[2];

@@ -34,3 +34,14 @@ export const SITE_RADIUS_M = 200;
 // propio edificio del sitio y los vecinos con muro medianero pegado,
 // ya representados por el modelo esquemático detallado.
 export const SITE_FOOTPRINT_MARGIN = 0.4;
+
+// ── Posición del edificio en la escena ──────────────────────────────────────
+// Desplazamiento para alinear el modelo 3D con su lote real en el contexto OSM.
+// Ajustar a ojo: valores negativos mueven el edificio hacia la derecha/abajo
+// de la pantalla (desde la posición inicial de la cámara).
+//   X: negativo → derecha,  positivo → izquierda
+//   Z: negativo → abajo,    positivo → arriba
+export const BUILDING_OFFSET_X = -0.8;
+export const BUILDING_OFFSET_Z = -3.5;
+// Rotación del edificio sobre su eje vertical (grados, sentido horario visto desde arriba).
+export const BUILDING_ROTATION_DEG = -7;
