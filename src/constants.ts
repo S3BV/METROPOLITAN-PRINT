@@ -33,7 +33,7 @@ export const SITE_RADIUS_M = 200;
 // esquemático (BW x BD) que se excluye del contexto OSM: ahí cae el
 // propio edificio del sitio y los vecinos con muro medianero pegado,
 // ya representados por el modelo esquemático detallado.
-export const SITE_FOOTPRINT_MARGIN = 0.4;
+export const SITE_FOOTPRINT_MARGIN = 1.8;
 
 // ── Posición del edificio en la escena ──────────────────────────────────────
 // Desplazamiento para alinear el modelo 3D con su lote real en el contexto OSM.

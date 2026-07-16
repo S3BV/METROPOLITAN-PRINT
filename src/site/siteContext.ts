@@ -9,6 +9,8 @@ export interface SiteContextOptions extends GeoProjectOpts {
   defaultLevels?: number;      // pisos asumidos si el edificio OSM no trae altura
   levelHeightM?: number;       // metros por piso asumidos
   footprintMargin?: number;    // unidades de escena extra alrededor del edificio esquemático a excluir del contexto OSM
+  buildingOffsetX?: number;    // debe coincidir con BUILDING_OFFSET_X de main.ts
+  buildingOffsetZ?: number;    // debe coincidir con BUILDING_OFFSET_Z de main.ts
 }
 
 interface GeoJSONFeature {
@@ -54,9 +56,9 @@ function scenePointsToShape(pts: { x: number; z: number }[]): THREE.Shape {
 }
 
 /** true si algún vértice cae dentro de la huella (expandida) del edificio esquemático. */
-function overlapsSchematicFootprint(pts: { x: number; z: number }[], margin: number): boolean {
+function overlapsSchematicFootprint(pts: { x: number; z: number }[], margin: number, ox = 0, oz = 0): boolean {
   const halfW = BW / 2 + margin, halfD = BD / 2 + margin;
-  return pts.some(p => Math.abs(p.x) < halfW && Math.abs(p.z) < halfD);
+  return pts.some(p => Math.abs(p.x - ox) < halfW && Math.abs(p.z - oz) < halfD);
 }
 
 function buildRoadRibbon(points: { x: number; z: number }[], widthUnits: number): THREE.Mesh {
@@ -93,7 +95,7 @@ const ROAD_WIDTH_M: Record<string, number> = {
 
 /** Construye un THREE.Group con los edificios y calles reales alrededor del origen configurado. */
 export function buildSiteContext(geojson: GeoJSONCollection, options: SiteContextOptions): THREE.Group {
-  const opts = { defaultLevels: 4, levelHeightM: 3.2, footprintMargin: 0.4, ...options };
+  const opts = { defaultLevels: 4, levelHeightM: 3.2, footprintMargin: 0.4, buildingOffsetX: 0, buildingOffsetZ: 0, ...options };
   const group = new THREE.Group();
   group.name = 'site-context';
 
@@ -107,7 +109,7 @@ export function buildSiteContext(geojson: GeoJSONCollection, options: SiteContex
       const outerPts = ringToScenePoints(outer, opts);
       // Omite el propio edificio del sitio (y vecinos pegados con muro medianero):
       // ya está representado por el modelo esquemático detallado.
-      if (overlapsSchematicFootprint(outerPts, opts.footprintMargin)) continue;
+      if (overlapsSchematicFootprint(outerPts, opts.footprintMargin, opts.buildingOffsetX, opts.buildingOffsetZ)) continue;
 
       const heightUnits = buildingHeightM(tags, opts) * opts.metersToUnits;
       if (heightUnits <= 0) continue;

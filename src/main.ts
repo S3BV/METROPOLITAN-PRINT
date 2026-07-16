@@ -119,6 +119,8 @@ const siteOpts = {
   rotationDeg: SITE_ROTATION_DEG,
   metersToUnits: SITE_METERS_TO_UNITS,
   footprintMargin: SITE_FOOTPRINT_MARGIN,
+  buildingOffsetX: BUILDING_OFFSET_X,
+  buildingOffsetZ: BUILDING_OFFSET_Z,
 };
 fetch('/site-context.json')
   .then(r => r.ok ? r.json() : null)
