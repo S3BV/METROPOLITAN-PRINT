@@ -132,7 +132,7 @@ groundMesh.position.set(bx, 0.05, bz);
 groundMesh.receiveShadow = true;
 scene.add(groundMesh);
 
-camera.position.set(bx - 8, midY + 12, bz + 30);
+camera.position.set(bx - 7, midY + 16, bz - 27);
 camera.lookAt(bx, midY, bz);
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -147,7 +147,7 @@ controls.autoRotate = true;
 controls.autoRotateSpeed = 0.8;
 controls.update();
 
-const _initCamPos = new THREE.Vector3(bx - 8, midY + 12, bz + 30);
+const _initCamPos = new THREE.Vector3(bx - 7, midY + 16, bz - 27);
 const _initTarget = new THREE.Vector3(bx, midY, bz);
 window._resetCamera = function() {
   controls.autoRotate = false;
