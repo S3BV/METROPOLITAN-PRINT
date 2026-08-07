@@ -24,5 +24,12 @@ export interface PEstado {
   bg: string;
 }
 
+export interface ModeloCatalogo {
+  id?: number;
+  marca: string;
+  modelo: string;
+  tipo_defecto?: string | null;
+}
+
 export type FloorZone = 'low' | 'high' | 'rect';
 export type FloorState = 'normal' | 'hov' | 'sel';

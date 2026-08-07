@@ -2,11 +2,11 @@ import './style.css';
 import * as THREE from 'three';
 import { OrbitControls }  from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { db, loadPrinters } from './supabase';
+import { db, loadPrinters, loadModelos } from './supabase';
 import { createBuilding } from './building/create';
 import { loadSiteGLB } from './site/siteContext';
 import { BUILDING_OFFSET_X, BUILDING_OFFSET_Z, BUILDING_ROTATION_DEG } from './constants';
-import type { Floor, Printer, PEstado, FloorState } from './types';
+import type { Floor, Printer, PEstado, FloorState, ModeloCatalogo } from './types';
 
 declare global {
   interface Window {
@@ -22,6 +22,12 @@ declare global {
     _openChecklist(event: MouseEvent, idx: number, floorId: string): void;
     _closeMenus(): void;
     _resetCamera(): void;
+    _switchTab(tab: string): void;
+    _onModeloSelChange(): void;
+    _openSettings(): void;
+    _closeSettings(): void;
+    _saveNewModelo(): Promise<void>;
+    _deleteModelo(id: number): Promise<void>;
   }
 }
 
@@ -61,6 +67,7 @@ const CONFIG_CHECKS: { key: string; label: string; servidorOnly?: boolean }[] = 
 ];
 
 let PRINTERS: Printer[] = await loadPrinters();
+let MODELOS: ModeloCatalogo[] = await loadModelos();
 
 // ── Interaction state ─────────────────────────────────────────
 let hovIdx = -1, selIdx = -1;
@@ -154,6 +161,63 @@ window._resetCamera = function() {
   camera.position.copy(_initCamPos);
   controls.target.copy(_initTarget);
   controls.update();
+};
+
+function renderPorPiso(): void {
+  const container = document.getElementById('por-piso-content');
+  if (!container) return;
+
+  const floorsWithPrinters = FLOORS.filter(f => PRINTERS.some(p => p.piso === f.id));
+
+  if (!floorsWithPrinters.length) {
+    container.innerHTML = `<div style="text-align:center;padding:80px 0;color:#2a3040;font-size:13px">Sin impresoras registradas</div>`;
+    return;
+  }
+
+  container.innerHTML = floorsWithPrinters.map(f => {
+    const ps = PRINTERS.filter(p => p.piso === f.id);
+    const items = ps.map(p => {
+      const pi = PRINTERS.indexOf(p);
+      const pe = PESTADOS[p.estado] ?? PESTADOS['En instalación'];
+      const estadoClick = p.estado === 'En configuración'
+        ? `window._openChecklist(event,${pi},'${f.id}')`
+        : `window._openEstadoMenu(event,${pi},'${f.id}')`;
+      return `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;padding:9px 0;border-bottom:1px solid #13141c">
+        <span style="font-size:12px;color:#c0cad4;font-weight:600;min-width:130px">${p.marca} <span style="color:#545e6a;font-weight:400">${p.modelo}</span></span>
+        <a href="http://${p.ip}" target="_blank" style="font-size:11px;color:#00d4ff;font-family:monospace;text-decoration:none;min-width:90px" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${p.ip}</a>
+        <span style="font-size:11px;color:#545e6a;flex:1;min-width:80px">${p.area}</span>
+        <span style="font-size:11px;padding:2px 7px;border-radius:4px;background:#ffffff08;color:#616b78;white-space:nowrap">${p.tipo === 'P2P' ? 'P2P' : 'Servidor'}</span>
+        <button onclick="${estadoClick}" style="display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:99px;font-size:10px;font-weight:700;color:${pe.color};background:${pe.bg};border:1px solid ${pe.color}33;cursor:pointer;white-space:nowrap">
+          <span style="width:5px;height:5px;border-radius:50%;background:${pe.color};flex-shrink:0"></span>${p.estado}<span style="font-size:8px;opacity:.5;margin-left:1px">${p.estado === 'En configuración' ? '⚙' : '▾'}</span>
+        </button>
+        <button class="act-btn" onclick="window._openModal('${f.id}',${pi})">✎</button>
+      </div>`;
+    }).join('');
+
+    return `<div style="margin-bottom:32px">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px">
+        <span style="font-size:20px;font-weight:800;color:#d8e0e8">Piso ${f.id}</span>
+        <span style="font-size:12px;color:#2e3847;font-weight:500">${ps.length} impresora${ps.length !== 1 ? 's' : ''}</span>
+      </div>
+      ${items}
+    </div>`;
+  }).join('');
+}
+
+function maybeRefreshPorPiso(): void {
+  const el = document.getElementById('panel-por-piso');
+  if (el && el.style.display !== 'none') renderPorPiso();
+}
+
+window._switchTab = function(tab: string) {
+  (['dashboard', 'por-piso', 'historial'] as const).forEach(t => {
+    const el = document.getElementById(`panel-${t}`);
+    if (el) el.style.display = t === tab ? 'block' : 'none';
+  });
+  document.querySelectorAll<HTMLButtonElement>('nav .btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset['tab'] === tab);
+  });
+  if (tab === 'por-piso') renderPorPiso();
 };
 
 // ── Floor color logic ─────────────────────────────────────────
@@ -289,10 +353,13 @@ function showDetail(floor: Floor | null): void {
     ph.classList.add('opacity-0');
     det.classList.remove('opacity-0', 'pointer-events-none');
 
-    const totalP       = FLOORS.reduce((s, f) => s + floorEffectiveP(f.id), 0);
-    const avgP         = Math.round(totalP / FLOORS.length);
-    const avgC         = floorColor(avgP);
+    const totalP        = FLOORS.reduce((s, f) => s + floorEffectiveP(f.id), 0);
+    const avgP          = Math.round(totalP / FLOORS.length);
+    const avgC          = floorColor(avgP);
     const totalPrinters = PRINTERS.length;
+    const completedFloors = activeFloors.filter(f =>
+      PRINTERS.filter(p => p.piso === f.id).every(p => p.estado === 'Operativa')
+    ).length;
 
     const cards = activeFloors.map(f => {
       const effP = floorEffectiveP(f.id);
@@ -327,7 +394,21 @@ function showDetail(floor: Floor | null): void {
         </div>
         <span class="text-[22px] font-black" style="color:${avgC}">${avgP}%</span>
       </div>
-      <div class="d-bar mb-6"><div class="d-fill" style="width:${avgP}%;background:${avgC};box-shadow:0 0 10px ${avgC}55"></div></div>
+      <div class="d-bar mb-4"><div class="d-fill" style="width:${avgP}%;background:${avgC};box-shadow:0 0 10px ${avgC}55"></div></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px">
+        <div class="d-card" style="padding:10px 14px">
+          <div class="d-tag" style="margin-bottom:4px">Impresoras</div>
+          <div style="font-size:20px;font-weight:800;color:#d8e0e8">${totalPrinters}</div>
+        </div>
+        <div class="d-card" style="padding:10px 14px">
+          <div class="d-tag" style="margin-bottom:4px">Pisos activos</div>
+          <div style="font-size:20px;font-weight:800;color:#d8e0e8">${activeFloors.length}</div>
+        </div>
+        <div class="d-card" style="padding:10px 14px">
+          <div class="d-tag" style="margin-bottom:4px">Completados</div>
+          <div style="font-size:20px;font-weight:800;color:${completedFloors === activeFloors.length && activeFloors.length > 0 ? '#00c46a' : '#d8e0e8'}">${completedFloors}<span style="font-size:12px;font-weight:500;color:#545e6a"> / ${activeFloors.length}</span></div>
+        </div>
+      </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">
         ${cards}
       </div>`;
@@ -400,6 +481,78 @@ function showDetail(floor: Floor | null): void {
 
 showDetail(null);
 
+// ── Combo de modelo ───────────────────────────────────────────
+window._onModeloSelChange = function() {
+  const sel       = document.getElementById('fi-modelo-sel')      as HTMLSelectElement;
+  const wrap      = document.getElementById('fi-modelo-custom-wrap') as HTMLDivElement | null;
+  const marcaEl   = document.getElementById('fi-marca')           as HTMLInputElement | null;
+  const tipoEl    = document.getElementById('fi-tipo')            as HTMLSelectElement | null;
+  if (sel.value === '__otro__') {
+    if (wrap)    wrap.style.display = 'block';
+    if (marcaEl) { marcaEl.removeAttribute('readonly'); marcaEl.style.opacity = '1'; marcaEl.value = ''; }
+  } else {
+    if (wrap)    wrap.style.display = 'none';
+    const found = MODELOS.find(m => m.modelo === sel.value);
+    if (found && marcaEl) { marcaEl.value = found.marca; marcaEl.setAttribute('readonly', ''); marcaEl.style.opacity = '0.5'; }
+    if (found?.tipo_defecto && tipoEl) tipoEl.value = found.tipo_defecto;
+  }
+};
+
+// ── Ajustes / Catálogo de modelos ─────────────────────────────
+function renderModelosList(): void {
+  const container = document.getElementById('settings-modelos-list');
+  if (!container) return;
+  container.innerHTML = !MODELOS.length
+    ? `<div style="color:#2a3040;font-size:12px;text-align:center;padding:12px 0">Catálogo vacío</div>`
+    : MODELOS.map(m => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#13141c;border-radius:6px;border:1px solid #1e2530">
+        <div>
+          <span style="font-size:12px;color:#c0cad4;font-weight:600">${m.marca}</span>
+          <span style="font-size:12px;color:#545e6a"> · ${m.modelo}</span>
+          ${m.tipo_defecto ? `<span style="font-size:10px;color:#363d48;margin-left:8px">${m.tipo_defecto}</span>` : ''}
+        </div>
+        <button class="act-btn danger" onclick="window._deleteModelo(${m.id})">×</button>
+      </div>`).join('');
+}
+
+window._openSettings = function() {
+  renderModelosList();
+  document.getElementById('settings-modal')!.classList.remove('hidden');
+};
+
+window._closeSettings = function() {
+  document.getElementById('settings-modal')!.classList.add('hidden');
+};
+
+{
+  const overlay = document.getElementById('settings-modal')!;
+  let _downOnOverlay = false;
+  overlay.addEventListener('mousedown', e => { _downOnOverlay = e.target === overlay; });
+  overlay.addEventListener('mouseup',   e => { if (e.target === overlay && _downOnOverlay) window._closeSettings(); });
+}
+
+window._saveNewModelo = async function() {
+  const marca  = (document.getElementById('new-marca')  as HTMLInputElement).value.trim();
+  const modelo = (document.getElementById('new-modelo') as HTMLInputElement).value.trim();
+  const tipo   = (document.getElementById('new-tipo')   as HTMLSelectElement).value || null;
+  if (!marca || !modelo) { alert('Marca y modelo son obligatorios.'); return; }
+  const { data, error } = await db.from('modelos').insert({ marca, modelo, tipo_defecto: tipo }).select().single();
+  if (error) { alert('Error al guardar: ' + error.message); return; }
+  MODELOS.push(data as ModeloCatalogo);
+  (document.getElementById('new-marca')  as HTMLInputElement).value  = '';
+  (document.getElementById('new-modelo') as HTMLInputElement).value  = '';
+  (document.getElementById('new-tipo')   as HTMLSelectElement).value = '';
+  renderModelosList();
+};
+
+window._deleteModelo = async function(id: number) {
+  if (!confirm('¿Eliminar este modelo del catálogo?')) return;
+  const { error } = await db.from('modelos').delete().eq('id', id);
+  if (error) { alert('Error al eliminar: ' + error.message); return; }
+  MODELOS = MODELOS.filter(m => m.id !== id);
+  renderModelosList();
+};
+
 // ── Modal ─────────────────────────────────────────────────────
 window._openModal = function(piso: string, idx: number) {
   _editIdx = idx;
@@ -416,10 +569,17 @@ window._openModal = function(piso: string, idx: number) {
         <input id="fi-serie" class="form-input" placeholder="SN..." value="${p.serie ?? ''}"></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">Marca</label>
-        <input id="fi-marca" class="form-input" placeholder="HP, Epson..." value="${p.marca}"></div>
       <div class="form-group"><label class="form-label">Modelo</label>
-        <input id="fi-modelo" class="form-input" placeholder="LaserJet..." value="${p.modelo}"></div>
+        <select id="fi-modelo-sel" class="form-input" onchange="window._onModeloSelChange()">
+          ${MODELOS.map(m => `<option value="${m.modelo}"${p.modelo===m.modelo?' selected':''}>${m.marca} · ${m.modelo}</option>`).join('')}
+          <option value="__otro__"${!MODELOS.some(m=>m.modelo===p.modelo)?' selected':''}>Otro…</option>
+        </select>
+        <div id="fi-modelo-custom-wrap" style="margin-top:6px;display:${!MODELOS.some(m=>m.modelo===p.modelo)?'block':'none'}">
+          <input id="fi-modelo-custom" class="form-input" placeholder="Modelo personalizado…" value="${!MODELOS.some(m=>m.modelo===p.modelo)?p.modelo:''}">
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Marca</label>
+        <input id="fi-marca" class="form-input" placeholder="HP, Epson…" value="${p.marca}" ${MODELOS.some(m=>m.modelo===p.modelo)?'readonly style="opacity:0.5;cursor:default"':''}></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Dirección IP</label>
@@ -469,6 +629,9 @@ window._saveModal = async function() {
   const hh = g('fi-hh'), ip = g('fi-ip');
   if (!hh || !ip) { alert('Identificador HH e IP son obligatorios.'); return; }
   const estadoVal = (document.getElementById('fi-estado') as HTMLSelectElement).value;
+  const modeloSel = (document.getElementById('fi-modelo-sel') as HTMLSelectElement).value;
+  const modelo = modeloSel === '__otro__' ? g('fi-modelo-custom') : modeloSel;
+  if (!modelo) { alert('El modelo es obligatorio.'); return; }
   const checklist: Record<string, boolean> = _editIdx >= 0 ? { ...(PRINTERS[_editIdx].checklist ?? {}) } : {};
   if (estadoVal === 'En configuración') {
     CONFIG_CHECKS.forEach(c => {
@@ -477,7 +640,7 @@ window._saveModal = async function() {
     });
   }
   const entry = {
-    hh, serie: g('fi-serie') || null, marca: g('fi-marca'), modelo: g('fi-modelo'),
+    hh, serie: g('fi-serie') || null, marca: g('fi-marca'), modelo,
     ip, piso: g('fi-piso'), area: g('fi-area'), tipo: g('fi-tipo'), estado: estadoVal, checklist,
   };
 
@@ -493,6 +656,7 @@ window._saveModal = async function() {
   window._closeModal();
   refresh3DFloor(entry.piso);
   if (selIdx >= 0) showDetail(FLOORS[selIdx]);
+  maybeRefreshPorPiso();
 };
 
 window._closeMenus = function() {
@@ -508,6 +672,7 @@ window._changeEstado = async function(idx: number, newEstado: string, floorId: s
   PRINTERS[idx] = { ...printer, estado: newEstado };
   refresh3DFloor(floorId);
   if (selIdx >= 0) showDetail(FLOORS[selIdx]);
+  maybeRefreshPorPiso();
 };
 
 window._openEstadoMenu = function(event: MouseEvent, idx: number, floorId: string) {
@@ -652,4 +817,5 @@ window._deleteP = async function(idx: number) {
   PRINTERS.splice(idx, 1);
   refresh3DFloor(pisoId);
   if (selIdx >= 0) showDetail(FLOORS[selIdx]);
+  maybeRefreshPorPiso();
 };
