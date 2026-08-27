@@ -2,33 +2,89 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Tokens de color ──────────────────────────────────────── */
+:root {
+  --col-bg:      #18191f;
+  --col-nav:     #111116;
+  --col-surf:    #1d1e26;
+  --col-surf2:   #14151e;
+  --col-surf3:   #13141c;
+  --col-surf4:   #1e2530;
+  --col-bord:    #28293a;
+  --col-bord2:   #1a1b22;
+  --col-text:    #c0cad4;
+  --col-text2:   #d8e0e8;
+  --col-text3:   #b0bac4;
+  --col-muted:   #545e6a;
+  --col-dim:     #363d48;
+  --col-subtle:  #2a3040;
+  --col-accent:  #00d4ff;
+  --col-acbg:    rgba(0,212,255,.08);
+  --col-acbd:    rgba(0,212,255,.22);
+  --col-overlay: rgba(0,0,0,.65);
+  --col-hover:   rgba(255,255,255,.025);
+  --col-hover2:  rgba(255,255,255,.05);
+}
+
+[data-theme="light"] {
+  --col-bg:      #f0f2f7;
+  --col-nav:     #ffffff;
+  --col-surf:    #ffffff;
+  --col-surf2:   #f5f7fb;
+  --col-surf3:   #edf0f6;
+  --col-surf4:   #e4e8f0;
+  --col-bord:    #dde1eb;
+  --col-bord2:   #e8eaf0;
+  --col-text:    #2a3348;
+  --col-text2:   #111825;
+  --col-text3:   #374155;
+  --col-muted:   #6b7585;
+  --col-dim:     #8a96a8;
+  --col-subtle:  #9faab8;
+  --col-accent:  #007ea8;
+  --col-acbg:    rgba(0,126,168,.1);
+  --col-acbd:    rgba(0,126,168,.3);
+  --col-overlay: rgba(0,0,0,.4);
+  --col-hover:   rgba(0,0,0,.03);
+  --col-hover2:  rgba(0,0,0,.05);
+}
+
+body {
+  color: var(--col-text);
+  background: var(--col-bg);
+  transition: background-color .2s ease, color .2s ease;
+}
+
 @layer components {
-  .btn { padding:5px 14px; border-radius:6px; border:1px solid transparent; background:none; color:#545e6a; font-size:13px; font-weight:500; cursor:pointer; transition:all .15s }
-  .btn:hover { color:#c0cad4; background:rgba(255,255,255,.05) }
-  .btn.active { color:#00d4ff; background:rgba(0,212,255,.08); border-color:rgba(0,212,255,.22) }
+  .btn { padding:5px 14px; border-radius:6px; border:1px solid transparent; background:none; color:var(--col-muted); font-size:13px; font-weight:500; cursor:pointer; transition:all .15s }
+  .btn:hover { color:var(--col-text); background:var(--col-hover2) }
+  .btn.active { color:var(--col-accent); background:var(--col-acbg); border-color:var(--col-acbd) }
 
-  .d-bar  { height:10px; background:#13141c; border-radius:6px; overflow:hidden }
+  .d-bar  { height:10px; background:var(--col-surf3); border-radius:6px; overflow:hidden }
   .d-fill { height:100%; border-radius:6px; transition:width .6s cubic-bezier(.4,0,.2,1) }
-  .d-card { background:#14151e; border:1px solid #28293a; border-radius:8px; padding:14px }
-  .d-tag  { font-size:10px; color:#363d48; font-weight:700; text-transform:uppercase; letter-spacing:.1em; margin-bottom:12px }
+  .d-card { background:var(--col-surf2); border:1px solid var(--col-bord); border-radius:8px; padding:14px; transition:border-color .15s }
+  .d-tag  { font-size:10px; color:var(--col-dim); font-weight:700; text-transform:uppercase; letter-spacing:.1em; margin-bottom:12px }
 
-  .p-table{width:100%;border-collapse:collapse;font-size:12px}
-  .p-table th{padding:7px 10px;text-align:left;color:#545e6a;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid #28293a;white-space:nowrap}
-  .p-table td{padding:7px 10px;border-bottom:1px solid #1a1b22;vertical-align:middle;color:#b0bac4}
-  .p-table tr:last-child td{border-bottom:none}
-  .p-table tr:hover td{background:rgba(255,255,255,.025)}
+  .p-table { width:100%; border-collapse:collapse; font-size:12px }
+  .p-table th { padding:7px 10px; text-align:left; color:var(--col-muted); font-weight:700; font-size:10px; text-transform:uppercase; letter-spacing:.08em; border-bottom:1px solid var(--col-bord); white-space:nowrap }
+  .p-table td { padding:7px 10px; border-bottom:1px solid var(--col-bord2); vertical-align:middle; color:var(--col-text3) }
+  .p-table tr:last-child td { border-bottom:none }
+  .p-table tr:hover td { background:var(--col-hover) }
 
-  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:50;display:flex;align-items:center;justify-content:center}
-  .modal-box{background:#1d1e26;border:1px solid #28293a;border-radius:12px;padding:24px;width:500px;max-height:90vh;overflow-y:auto}
-  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
-  .form-group{display:flex;flex-direction:column;gap:5px;margin-bottom:0}
-  .form-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#545e6a}
-  .form-input{background:#13141c;border:1px solid #28293a;border-radius:6px;padding:7px 10px;color:#c0cad4;font-size:13px;outline:none;transition:border-color .15s;width:100%;box-sizing:border-box}
-  .form-input:focus{border-color:rgba(0,212,255,.5)}
+  .modal-overlay { position:fixed; inset:0; background:var(--col-overlay); z-index:50; display:flex; align-items:center; justify-content:center }
+  .modal-box { background:var(--col-surf); border:1px solid var(--col-bord); border-radius:12px; padding:24px; width:500px; max-height:90vh; overflow-y:auto }
+  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px }
+  .form-group { display:flex; flex-direction:column; gap:5px; margin-bottom:0 }
+  .form-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--col-muted) }
+  .form-input { background:var(--col-surf3); border:1px solid var(--col-bord); border-radius:6px; padding:7px 10px; color:var(--col-text); font-size:13px; outline:none; transition:border-color .15s; width:100%; box-sizing:border-box }
+  .form-input:focus { border-color:var(--col-acbd) }
 
-  .act-btn{padding:3px 7px;border-radius:4px;border:1px solid #28293a;background:none;color:#545e6a;font-size:11px;cursor:pointer;transition:all .15s;margin-left:3px}
-  .act-btn:hover{border-color:#3a4050;color:#c0cad4}
-  .act-btn.danger:hover{border-color:#d42020;color:#d42020}
+  .act-btn { padding:3px 7px; border-radius:4px; border:1px solid var(--col-bord); background:none; color:var(--col-muted); font-size:11px; cursor:pointer; transition:all .15s; margin-left:3px }
+  .act-btn:hover { border-color:var(--col-bord); color:var(--col-text); background:var(--col-hover2) }
+  .act-btn.danger:hover { border-color:#d42020; color:#d42020 }
+
+  .icon-btn { background:none; border:none; color:var(--col-dim); cursor:pointer; font-size:15px; padding:4px 7px; border-radius:6px; line-height:1; transition:color .15s }
+  .icon-btn:hover { color:var(--col-text) }
 }
 
 @media (max-width: 767px) {

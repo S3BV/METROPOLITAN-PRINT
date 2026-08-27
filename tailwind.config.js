@@ -4,12 +4,12 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg:      '#18191f',
-        nav:     '#111116',
-        surface: '#1d1e26',
-        border:  '#28293a',
-        muted:   '#545e6a',
-        subtle:  '#2c3040',
+        bg:      'var(--col-bg)',
+        nav:     'var(--col-nav)',
+        surface: 'var(--col-surf)',
+        border:  'var(--col-bord)',
+        muted:   'var(--col-muted)',
+        subtle:  'var(--col-subtle)',
       },
     },
   },

@@ -4,15 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Metropolitan Print</title>
+  <script>if(localStorage.getItem('mp-theme')==='light')document.documentElement.setAttribute('data-theme','light')</script>
 </head>
-<body class="bg-bg text-[#c0cad4] h-screen overflow-hidden font-[system-ui,sans-serif]">
+<body class="bg-bg h-screen overflow-hidden font-[system-ui,sans-serif]">
 
 <nav class="h-12 bg-nav border-b border-[#26272f] flex items-center px-5 gap-0.5">
   <button class="btn active" data-tab="dashboard" onclick="window._switchTab('dashboard')">Dashboard</button>
   <button class="btn" data-tab="por-piso" onclick="window._switchTab('por-piso')">Por piso</button>
   <button class="btn" data-tab="historial" onclick="window._switchTab('historial')">Historial</button>
   <div class="flex-1"></div>
-  <button onclick="window._openSettings()" title="Ajustes" style="background:none;border:none;color:#363d48;cursor:pointer;font-size:16px;padding:4px 6px;border-radius:6px;line-height:1;transition:color .15s" onmouseover="this.style.color='#c0cad4'" onmouseout="this.style.color='#363d48'">⚙</button>
+  <button id="theme-toggle" onclick="window._toggleTheme()" title="Cambiar tema" class="icon-btn">☀</button>
+  <button onclick="window._openSettings()" title="Ajustes" class="icon-btn">⚙</button>
 </nav>
 
 <!-- Layout principal: visor 3D siempre visible + panel derecho intercambiable -->
@@ -48,7 +50,7 @@
 
     <!-- Panel: Historial -->
     <div id="panel-historial" class="absolute inset-0 flex items-center justify-center" style="display:none">
-      <span style="color:#2a3040;font-size:13px">En desarrollo</span>
+      <span style="color:var(--col-subtle);font-size:13px">En desarrollo</span>
     </div>
 
   </div>
@@ -58,8 +60,8 @@
 <div id="modal" class="hidden modal-overlay">
   <div class="modal-box" onclick="event.stopPropagation()">
     <div class="flex items-center justify-between mb-5">
-      <h3 id="modal-title" class="text-base font-bold text-[#d8e0e8]">Agregar impresora</h3>
-      <button onclick="window._closeModal()" style="background:none;border:none;color:#545e6a;font-size:22px;cursor:pointer;line-height:1;padding:0">&times;</button>
+      <h3 id="modal-title" class="text-base font-bold" style="color:var(--col-text2)">Agregar impresora</h3>
+      <button onclick="window._closeModal()" style="background:none;border:none;color:var(--col-muted);font-size:22px;cursor:pointer;line-height:1;padding:0">&times;</button>
     </div>
     <div id="modal-form"></div>
     <div class="flex justify-end gap-2 mt-5">
@@ -73,19 +75,19 @@
 <div id="settings-modal" class="hidden modal-overlay">
   <div class="modal-box" onclick="event.stopPropagation()" style="width:480px">
     <div class="flex items-center justify-between mb-5">
-      <h3 class="text-base font-bold text-[#d8e0e8]">Catálogo de modelos</h3>
-      <button onclick="window._closeSettings()" style="background:none;border:none;color:#545e6a;font-size:22px;cursor:pointer;line-height:1;padding:0">&times;</button>
+      <h3 class="text-base font-bold" style="color:var(--col-text2)">Catálogo de modelos</h3>
+      <button onclick="window._closeSettings()" style="background:none;border:none;color:var(--col-muted);font-size:22px;cursor:pointer;line-height:1;padding:0">&times;</button>
     </div>
     <div id="settings-modelos-list" style="margin-bottom:20px;display:flex;flex-direction:column;gap:6px"></div>
-    <div style="border-top:1px solid #1e2530;padding-top:16px">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#545e6a;margin-bottom:10px">Agregar modelo</div>
+    <div style="border-top:1px solid var(--col-bord);padding-top:16px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--col-muted);margin-bottom:10px">Agregar modelo</div>
       <div class="form-row" style="margin-bottom:10px">
         <div class="form-group"><label class="form-label">Marca</label>
           <input id="new-marca" class="form-input" placeholder="HP, Epson…"></div>
         <div class="form-group"><label class="form-label">Modelo</label>
           <input id="new-modelo" class="form-input" placeholder="LaserJet MFP E62555"></div>
       </div>
-      <div class="form-group" style="margin-bottom:14px"><label class="form-label">Tipo por defecto <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#363d48">(opcional)</span></label>
+      <div class="form-group" style="margin-bottom:14px"><label class="form-label">Tipo por defecto <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--col-dim)">(opcional)</span></label>
         <select id="new-tipo" class="form-input">
           <option value="">— Sin preferencia —</option>
           <option value="P2P">Punto a punto (P2P)</option>

@@ -28,6 +28,7 @@ declare global {
     _closeSettings(): void;
     _saveNewModelo(): Promise<void>;
     _deleteModelo(id: number): Promise<void>;
+    _toggleTheme(): void;
   }
 }
 
@@ -170,7 +171,7 @@ function renderPorPiso(): void {
   const floorsWithPrinters = FLOORS.filter(f => PRINTERS.some(p => p.piso === f.id));
 
   if (!floorsWithPrinters.length) {
-    container.innerHTML = `<div style="text-align:center;padding:80px 0;color:#2a3040;font-size:13px">Sin impresoras registradas</div>`;
+    container.innerHTML = `<div style="text-align:center;padding:80px 0;color:var(--col-subtle);font-size:13px">Sin impresoras registradas</div>`;
     return;
   }
 
@@ -182,16 +183,16 @@ function renderPorPiso(): void {
       const estadoClick = p.estado === 'En configuración'
         ? `window._openChecklist(event,${pi},'${f.id}')`
         : `window._openEstadoMenu(event,${pi},'${f.id}')`;
-      const lbl = (t: string) => `<div style="font-size:9px;color:#363d48;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">${t}</div>`;
-      return `<div style="display:flex;align-items:flex-start;flex-wrap:wrap;gap:10px 20px;padding:11px 0;border-bottom:1px solid #13141c">
+      const lbl = (t: string) => `<div style="font-size:9px;color:var(--col-dim);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">${t}</div>`;
+      return `<div style="display:flex;align-items:flex-start;flex-wrap:wrap;gap:10px 20px;padding:11px 0;border-bottom:1px solid var(--col-surf3)">
         <div style="min-width:80px">${lbl('HH')}
-          <span style="font-size:12px;color:#c0cad4;font-weight:700;font-family:monospace">${p.hh}</span></div>
+          <span style="font-size:12px;color:var(--col-text);font-weight:700;font-family:monospace">${p.hh}</span></div>
         <div style="min-width:90px">${lbl('IP')}
-          <a href="http://${p.ip}" target="_blank" style="font-size:12px;color:#00d4ff;font-family:monospace;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${p.ip}</a></div>
+          <a href="http://${p.ip}" target="_blank" style="font-size:12px;color:var(--col-accent);font-family:monospace;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${p.ip}</a></div>
         <div style="flex:1;min-width:150px">${lbl('Modelo')}
-          <span style="font-size:12px;color:#9ab0c0">${p.marca} <span style="color:#545e6a">${p.modelo}</span></span></div>
+          <span style="font-size:12px;color:var(--col-text3)">${p.marca} <span style="color:var(--col-muted)">${p.modelo}</span></span></div>
         <div style="flex:1;min-width:100px">${lbl('Unidad')}
-          <span style="font-size:12px;color:#616b78">${p.area}</span></div>
+          <span style="font-size:12px;color:var(--col-muted)">${p.area}</span></div>
         <div style="display:flex;align-items:center;gap:6px;margin-left:auto;padding-top:2px">
           <button onclick="${estadoClick}" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;font-size:10px;font-weight:700;color:${pe.color};background:${pe.bg};border:1px solid ${pe.color}33;cursor:pointer;white-space:nowrap">
             <span style="width:5px;height:5px;border-radius:50%;background:${pe.color};flex-shrink:0"></span>${p.estado}<span style="font-size:8px;opacity:.5;margin-left:1px">${p.estado === 'En configuración' ? '⚙' : '▾'}</span>
@@ -203,8 +204,8 @@ function renderPorPiso(): void {
 
     return `<div style="margin-bottom:32px">
       <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px">
-        <span style="font-size:20px;font-weight:800;color:#d8e0e8">Piso ${f.id}</span>
-        <span style="font-size:12px;color:#2e3847;font-weight:500">${ps.length} impresora${ps.length !== 1 ? 's' : ''}</span>
+        <span style="font-size:20px;font-weight:800;color:var(--col-text2)">Piso ${f.id}</span>
+        <span style="font-size:12px;color:var(--col-subtle);font-weight:500">${ps.length} impresora${ps.length !== 1 ? 's' : ''}</span>
       </div>
       ${items}
     </div>`;
@@ -377,11 +378,11 @@ function showDetail(floor: Floor | null): void {
           `<span style="font-size:10px;padding:1px 7px;border-radius:99px;color:${pe.color};background:${pe.bg};border:1px solid ${pe.color}33">${e} &middot; ${count}</span>`
         ).join('');
       return `<div class="d-card" style="padding:12px 14px;cursor:pointer"
-          onmouseover="this.style.borderColor='#2a3a4a'"
+          onmouseover="this.style.borderColor='var(--col-muted)'"
           onmouseout="this.style.borderColor=''"
           onclick="window._selectFloor('${f.id}')">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px">
-          <span style="font-size:13px;font-weight:700;color:#d8e0e8">Piso ${f.id}</span>
+          <span style="font-size:13px;font-weight:700;color:var(--col-text2)">Piso ${f.id}</span>
           <span style="font-size:13px;font-weight:800;color:${fc}">${effP}%</span>
         </div>
         <div class="d-bar" style="height:3px;margin-bottom:8px">
@@ -394,8 +395,8 @@ function showDetail(floor: Floor | null): void {
     det.innerHTML = `
       <div class="flex items-center justify-between mb-4">
         <div>
-          <h2 class="text-[22px] font-bold text-[#d8e0e8]">Avance general</h2>
-          <div style="font-size:12px;color:#545e6a;margin-top:2px">${activeFloors.length} pisos &middot; ${totalPrinters} impresoras</div>
+          <h2 class="text-[22px] font-bold" style="color:var(--col-text2)">Avance general</h2>
+          <div style="font-size:12px;color:var(--col-muted);margin-top:2px">${activeFloors.length} pisos &middot; ${totalPrinters} impresoras</div>
         </div>
         <span class="text-[22px] font-black" style="color:${avgC}">${avgP}%</span>
       </div>
@@ -403,15 +404,15 @@ function showDetail(floor: Floor | null): void {
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px">
         <div class="d-card" style="padding:10px 14px">
           <div class="d-tag" style="margin-bottom:4px">Impresoras</div>
-          <div style="font-size:20px;font-weight:800;color:#d8e0e8">${totalPrinters}</div>
+          <div style="font-size:20px;font-weight:800;color:var(--col-text2)">${totalPrinters}</div>
         </div>
         <div class="d-card" style="padding:10px 14px">
           <div class="d-tag" style="margin-bottom:4px">Pisos activos</div>
-          <div style="font-size:20px;font-weight:800;color:#d8e0e8">${activeFloors.length}</div>
+          <div style="font-size:20px;font-weight:800;color:var(--col-text2)">${activeFloors.length}</div>
         </div>
         <div class="d-card" style="padding:10px 14px">
           <div class="d-tag" style="margin-bottom:4px">Operativas</div>
-          <div style="font-size:20px;font-weight:800;color:${operativas === totalPrinters && totalPrinters > 0 ? '#00c46a' : '#d8e0e8'}">${operativas}<span style="font-size:12px;font-weight:500;color:#545e6a"> / ${totalPrinters}</span></div>
+          <div style="font-size:20px;font-weight:800;color:${operativas === totalPrinters && totalPrinters > 0 ? '#00c46a' : '#d8e0e8'}">${operativas}<span style="font-size:12px;font-weight:500;color:var(--col-muted)"> / ${totalPrinters}</span></div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">
@@ -430,12 +431,12 @@ function showDetail(floor: Floor | null): void {
     const pi = PRINTERS.indexOf(p);
     const pe = PESTADOS[p.estado] ?? PESTADOS['Planificada'];
     return `<tr>
-      <td class="font-mono font-semibold" style="color:#c0cad4">${p.hh}</td>
-      <td><div style="color:#c0cad4;font-weight:500">${p.marca}</div><div style="font-size:11px;color:#545e6a">${p.modelo}</div></td>
+      <td class="font-mono font-semibold" style="color:var(--col-text)">${p.hh}</td>
+      <td><div style="color:var(--col-text);font-weight:500">${p.marca}</div><div style="font-size:11px;color:var(--col-muted)">${p.modelo}</div></td>
       <td class="font-mono" style="font-size:11px">${p.serie ?? '—'}</td>
-      <td><a href="http://${p.ip}" target="_blank" class="font-mono" style="font-size:11px;color:#00d4ff;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${p.ip}</a></td>
+      <td><a href="http://${p.ip}" target="_blank" class="font-mono" style="font-size:11px;color:var(--col-accent);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${p.ip}</a></td>
       <td>${p.area}</td>
-      <td><span style="font-size:11px;padding:2px 7px;border-radius:4px;background:#ffffff0a;color:#7a8898">${p.tipo === 'P2P' ? 'P2P' : 'Servidor'}</span></td>
+      <td><span style="font-size:11px;padding:2px 7px;border-radius:4px;background:var(--col-hover);color:var(--col-muted)">${p.tipo === 'P2P' ? 'P2P' : 'Servidor'}</span></td>
       <td>
         <button onclick="${p.estado === 'En configuración' ? `window._openChecklist(event,${pi},'${floor.id}')` : `window._openEstadoMenu(event,${pi},'${floor.id}')`}"
           style="display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:99px;font-size:10px;font-weight:700;color:${pe.color};background:${pe.bg};border:1px solid ${pe.color}33;cursor:pointer">
@@ -452,7 +453,7 @@ function showDetail(floor: Floor | null): void {
   det.innerHTML = `
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center gap-3">
-        <h2 class="text-[22px] font-bold text-[#d8e0e8]">Piso ${floor.id}</h2>
+        <h2 class="text-[22px] font-bold" style="color:var(--col-text2)">Piso ${floor.id}</h2>
         <span class="px-3 py-0.5 rounded-full text-[11px] font-bold border" style="color:${c};background:${c}18;border-color:${c}40">${st}</span>
       </div>
       <span class="text-[22px] font-black" style="color:${c}">${effP}%</span>
@@ -462,7 +463,7 @@ function showDetail(floor: Floor | null): void {
       ${HITOS.map((h, i) => {
         const s = hitoState(effP, i), hc = STATE_COLOR[s];
         return `<div class="d-card" style="padding:10px">
-          <div class="text-[10px] font-medium mb-1.5" style="color:#484f5c">${h}</div>
+          <div class="text-[10px] font-medium mb-1.5" style="color:var(--col-muted)">${h}</div>
           <div class="flex items-center gap-1.5 text-[11px] font-semibold">
             <div class="w-1.5 h-1.5 rounded-full" style="background:${hc}"></div>
             <span style="color:${hc}">${STATE_LABEL[s]}</span>
@@ -471,10 +472,10 @@ function showDetail(floor: Floor | null): void {
     </div>
     <div class="flex items-center justify-between mb-3">
       <div class="d-tag" style="margin-bottom:0">Impresoras · ${printers.length}</div>
-      <button class="btn" style="padding:4px 12px;font-size:12px;color:#00d4ff;border-color:rgba(0,212,255,.25)" onclick="window._openModal('${floor.id}',-1)">+ Agregar</button>
+      <button class="btn" style="padding:4px 12px;font-size:12px;color:var(--col-accent);border-color:var(--col-acbd)" onclick="window._openModal('${floor.id}',-1)">+ Agregar</button>
     </div>
     ${printers.length === 0
-      ? `<div style="text-align:center;padding:32px 0;color:#2a2e3c;font-size:13px">Sin impresoras registradas para este piso</div>`
+      ? `<div style="text-align:center;padding:32px 0;color:var(--col-subtle);font-size:13px">Sin impresoras registradas para este piso</div>`
       : `<div style="overflow-x:auto"><table class="p-table">
           <thead><tr>
             <th>HH</th><th>Marca / Modelo</th><th>Serie</th><th>IP</th><th>Área</th><th>Tipo</th><th>Estado</th><th></th>
@@ -485,6 +486,25 @@ function showDetail(floor: Floor | null): void {
 }
 
 showDetail(null);
+
+// ── Tema claro / oscuro ───────────────────────────────────────
+window._toggleTheme = function() {
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const next = isLight ? 'dark' : 'light';
+  if (next === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = next === 'light' ? '☾' : '☀';
+  localStorage.setItem('mp-theme', next);
+};
+{
+  const btn = document.getElementById('theme-toggle');
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if (btn) btn.textContent = isLight ? '☾' : '☀';
+}
 
 // ── Combo de modelo ───────────────────────────────────────────
 window._onModeloSelChange = function() {
@@ -508,13 +528,13 @@ function renderModelosList(): void {
   const container = document.getElementById('settings-modelos-list');
   if (!container) return;
   container.innerHTML = !MODELOS.length
-    ? `<div style="color:#2a3040;font-size:12px;text-align:center;padding:12px 0">Catálogo vacío</div>`
+    ? `<div style="color:var(--col-subtle);font-size:12px;text-align:center;padding:12px 0">Catálogo vacío</div>`
     : MODELOS.map(m => `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#13141c;border-radius:6px;border:1px solid #1e2530">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--col-surf3);border-radius:6px;border:1px solid var(--col-bord)">
         <div>
-          <span style="font-size:12px;color:#c0cad4;font-weight:600">${m.marca}</span>
-          <span style="font-size:12px;color:#545e6a"> · ${m.modelo}</span>
-          ${m.tipo_defecto ? `<span style="font-size:10px;color:#363d48;margin-left:8px">${m.tipo_defecto}</span>` : ''}
+          <span style="font-size:12px;color:var(--col-text);font-weight:600">${m.marca}</span>
+          <span style="font-size:12px;color:var(--col-muted)"> · ${m.modelo}</span>
+          ${m.tipo_defecto ? `<span style="font-size:10px;color:var(--col-dim);margin-left:8px">${m.tipo_defecto}</span>` : ''}
         </div>
         <button class="act-btn danger" onclick="window._deleteModelo(${m.id})">×</button>
       </div>`).join('');
@@ -570,7 +590,7 @@ window._openModal = function(piso: string, idx: number) {
     <div class="form-row">
       <div class="form-group"><label class="form-label">Identificador HH</label>
         <input id="fi-hh" class="form-input" placeholder="HH-001" value="${p.hh}"></div>
-      <div class="form-group"><label class="form-label">N° Serie <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#363d48">(opcional)</span></label>
+      <div class="form-group"><label class="form-label">N° Serie <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--col-dim)">(opcional)</span></label>
         <input id="fi-serie" class="form-input" placeholder="SN..." value="${p.serie ?? ''}"></div>
     </div>
     <div class="form-row">
@@ -607,8 +627,8 @@ window._openModal = function(piso: string, idx: number) {
       <select id="fi-piso" class="form-input">
         ${FLOORS.map(f => `<option value="${f.id}"${(isEdit?p.piso:piso)===f.id?' selected':''}>Piso ${f.id}</option>`).join('')}
       </select></div>
-    <div id="fi-config-section" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid #1e2530">
-      <div style="color:#6b7280;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">Checklist de configuración</div>
+    <div id="fi-config-section" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid var(--col-bord)">
+      <div style="color:var(--col-muted);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">Checklist de configuración</div>
       <div id="fi-config-checks" style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px"></div>
     </div>`;
   _modalChecklist = isEdit ? { ...(PRINTERS[idx].checklist ?? {}) } : {};
@@ -688,7 +708,7 @@ window._openEstadoMenu = function(event: MouseEvent, idx: number, floorId: strin
   const menu = document.createElement('div');
   menu.id = 'estado-menu';
   menu.style.cssText = `position:fixed;z-index:1000;top:${rect.bottom + 4}px;left:${rect.left}px;
-    background:#1a1f2e;border:1px solid #2a3040;border-radius:8px;padding:4px;
+    background:var(--col-surf);border:1px solid var(--col-bord);border-radius:8px;padding:4px;
     display:flex;flex-direction:column;gap:1px;box-shadow:0 8px 24px rgba(0,0,0,.6);min-width:165px`;
   PESTADO_LIST.forEach(e => {
     const pe = PESTADOS[e];
@@ -722,12 +742,12 @@ window._openChecklist = function(event: MouseEvent, idx: number, floorId: string
   const popup = document.createElement('div');
   popup.id = 'cl-popup';
   popup.style.cssText = `position:fixed;z-index:1001;top:${rect.bottom + 6}px;left:${left}px;
-    background:#1a1f2e;border:1px solid #2a3040;border-radius:10px;padding:12px 14px;
+    background:var(--col-surf);border:1px solid var(--col-bord);border-radius:10px;padding:12px 14px;
     min-width:224px;box-shadow:0 8px 32px rgba(0,0,0,.6)`;
 
   const cl0 = printer.checklist ?? {};
   popup.innerHTML = `
-    <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6b7280;margin-bottom:10px">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--col-muted);margin-bottom:10px">
       Checklist &middot; ${printer.hh}
     </div>
     <div style="display:flex;flex-direction:column;gap:7px">
@@ -736,7 +756,7 @@ window._openChecklist = function(event: MouseEvent, idx: number, floorId: string
         return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none">
           <input type="checkbox" data-key="${c.key}" ${checked ? 'checked' : ''}
             style="width:13px;height:13px;accent-color:#f97316;cursor:pointer;flex-shrink:0">
-          <span style="font-size:12px;color:${checked ? '#c0cad4' : '#545e6a'}">${c.label}</span>
+          <span style="font-size:12px;color:${checked ? 'var(--col-text)' : 'var(--col-muted)'}">${c.label}</span>
         </label>`;
       }).join('')}
     </div>`;
@@ -751,7 +771,7 @@ window._openChecklist = function(event: MouseEvent, idx: number, floorId: string
       if (error) { alert('Error: ' + error.message); input.checked = !input.checked; return; }
       PRINTERS[idx] = { ...PRINTERS[idx], checklist: cl };
       const span = input.nextElementSibling as HTMLElement;
-      if (span) span.style.color = input.checked ? '#c0cad4' : '#545e6a';
+      if (span) span.style.color = input.checked ? 'var(--col-text)' : 'var(--col-muted)';
       if (checks.every(c => cl[c.key] === true)) {
         window._closeMenus();
         await window._changeEstado(idx, 'Operativa', floorId);
@@ -799,7 +819,7 @@ window._renderConfigChecklist = function() {
       return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;padding:3px 0">
         <input type="checkbox" id="fc-${c.key}" ${checked ? 'checked' : ''}
           style="width:13px;height:13px;accent-color:#f97316;cursor:pointer;flex-shrink:0">
-        <span style="font-size:12px;color:#c0cad4">${c.label}</span>
+        <span style="font-size:12px;color:var(--col-text)">${c.label}</span>
       </label>`;
     }).join('');
 };
