@@ -182,15 +182,22 @@ function renderPorPiso(): void {
       const estadoClick = p.estado === 'En configuración'
         ? `window._openChecklist(event,${pi},'${f.id}')`
         : `window._openEstadoMenu(event,${pi},'${f.id}')`;
-      return `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;padding:9px 0;border-bottom:1px solid #13141c">
-        <span style="font-size:12px;color:#c0cad4;font-weight:600;min-width:130px">${p.marca} <span style="color:#545e6a;font-weight:400">${p.modelo}</span></span>
-        <a href="http://${p.ip}" target="_blank" style="font-size:11px;color:#00d4ff;font-family:monospace;text-decoration:none;min-width:90px" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${p.ip}</a>
-        <span style="font-size:11px;color:#545e6a;flex:1;min-width:80px">${p.area}</span>
-        <span style="font-size:11px;padding:2px 7px;border-radius:4px;background:#ffffff08;color:#616b78;white-space:nowrap">${p.tipo === 'P2P' ? 'P2P' : 'Servidor'}</span>
-        <button onclick="${estadoClick}" style="display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:99px;font-size:10px;font-weight:700;color:${pe.color};background:${pe.bg};border:1px solid ${pe.color}33;cursor:pointer;white-space:nowrap">
-          <span style="width:5px;height:5px;border-radius:50%;background:${pe.color};flex-shrink:0"></span>${p.estado}<span style="font-size:8px;opacity:.5;margin-left:1px">${p.estado === 'En configuración' ? '⚙' : '▾'}</span>
-        </button>
-        <button class="act-btn" onclick="window._openModal('${f.id}',${pi})">✎</button>
+      const lbl = (t: string) => `<div style="font-size:9px;color:#363d48;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">${t}</div>`;
+      return `<div style="display:flex;align-items:flex-start;flex-wrap:wrap;gap:10px 20px;padding:11px 0;border-bottom:1px solid #13141c">
+        <div style="min-width:80px">${lbl('HH')}
+          <span style="font-size:12px;color:#c0cad4;font-weight:700;font-family:monospace">${p.hh}</span></div>
+        <div style="min-width:90px">${lbl('IP')}
+          <a href="http://${p.ip}" target="_blank" style="font-size:12px;color:#00d4ff;font-family:monospace;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${p.ip}</a></div>
+        <div style="flex:1;min-width:150px">${lbl('Modelo')}
+          <span style="font-size:12px;color:#9ab0c0">${p.marca} <span style="color:#545e6a">${p.modelo}</span></span></div>
+        <div style="flex:1;min-width:100px">${lbl('Unidad')}
+          <span style="font-size:12px;color:#616b78">${p.area}</span></div>
+        <div style="display:flex;align-items:center;gap:6px;margin-left:auto;padding-top:2px">
+          <button onclick="${estadoClick}" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;font-size:10px;font-weight:700;color:${pe.color};background:${pe.bg};border:1px solid ${pe.color}33;cursor:pointer;white-space:nowrap">
+            <span style="width:5px;height:5px;border-radius:50%;background:${pe.color};flex-shrink:0"></span>${p.estado}<span style="font-size:8px;opacity:.5;margin-left:1px">${p.estado === 'En configuración' ? '⚙' : '▾'}</span>
+          </button>
+          <button class="act-btn" onclick="window._openModal('${f.id}',${pi})">✎</button>
+        </div>
       </div>`;
     }).join('');
 
