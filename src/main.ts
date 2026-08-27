@@ -364,9 +364,7 @@ function showDetail(floor: Floor | null): void {
     const avgP          = Math.round(totalP / FLOORS.length);
     const avgC          = floorColor(avgP);
     const totalPrinters = PRINTERS.length;
-    const completedFloors = activeFloors.filter(f =>
-      PRINTERS.filter(p => p.piso === f.id).every(p => p.estado === 'Operativa')
-    ).length;
+    const operativas    = PRINTERS.filter(p => p.estado === 'Operativa').length;
 
     const cards = activeFloors.map(f => {
       const effP = floorEffectiveP(f.id);
@@ -412,8 +410,8 @@ function showDetail(floor: Floor | null): void {
           <div style="font-size:20px;font-weight:800;color:#d8e0e8">${activeFloors.length}</div>
         </div>
         <div class="d-card" style="padding:10px 14px">
-          <div class="d-tag" style="margin-bottom:4px">Completados</div>
-          <div style="font-size:20px;font-weight:800;color:${completedFloors === activeFloors.length && activeFloors.length > 0 ? '#00c46a' : '#d8e0e8'}">${completedFloors}<span style="font-size:12px;font-weight:500;color:#545e6a"> / ${activeFloors.length}</span></div>
+          <div class="d-tag" style="margin-bottom:4px">Operativas</div>
+          <div style="font-size:20px;font-weight:800;color:${operativas === totalPrinters && totalPrinters > 0 ? '#00c46a' : '#d8e0e8'}">${operativas}<span style="font-size:12px;font-weight:500;color:#545e6a"> / ${totalPrinters}</span></div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">
